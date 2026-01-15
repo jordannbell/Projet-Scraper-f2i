@@ -1,0 +1,9 @@
+requests
+beautifulsoup4
+lxml
+pandas
+fake-useragent
+selenium
+webdriver-manager
+python-dotenv
+streamlit
