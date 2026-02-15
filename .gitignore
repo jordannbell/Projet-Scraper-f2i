@@ -31,3 +31,7 @@ geckodriver.log
 chromedriver.log
 README.md
 .venv
+.env
+
+
+DEPLOYMENT.md

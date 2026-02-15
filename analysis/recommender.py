@@ -95,11 +95,11 @@ class RecommendationSystem:
             
             if score > 0:
                 scored_jobs.append({
-                    "titre": job.get('title'),
-                    "entreprise": job.get('company_location'),
+                    "titre": title,
+                    "entreprise": company,
                     "score": score,
                     "skills_found": job_skills_list,
-                    "url": job.get('url')
+                    "url": url
                 })
         
         # Trier par score décroissant
