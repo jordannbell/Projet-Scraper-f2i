@@ -14,14 +14,7 @@ export default function LoginPage() {
 
     return (
         <AuthLayout mode="login">
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold text-slate-900">Bienvenue 👋</h2>
-                <p className="mt-2 text-sm text-slate-600">
-                    Entrez vos informations pour accéder à votre espace.
-                </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <InputGroup
                     label="Email"
                     type="email"
@@ -65,39 +58,35 @@ export default function LoginPage() {
                 <div>
                     <button
                         type="submit"
-                        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-500/30 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 hover:scale-[1.02]"
+                        className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg text-[15px] font-semibold text-white bg-[#0052FF] hover:bg-[#0040DD] focus:outline-none transition-colors"
                     >
                         Sign In
                     </button>
                 </div>
             </form>
 
-            <div className="mt-8">
+            <div className="mt-6 mb-6">
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-slate-200" />
                     </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="bg-white px-4 text-slate-400 uppercase tracking-widest text-xs font-semibold">
-                            Or
+                    <div className="relative flex justify-center text-xs">
+                        <span className="bg-white px-2 text-slate-400 font-medium">
+                            OR
                         </span>
                     </div>
                 </div>
-
-                <div className="mt-6 flex flex-col gap-3">
-                    {/* Social Buttons Stack */}
-                    <SocialButton provider="google" className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50" />
-                    <SocialButton provider="facebook" />
-                    <SocialButton provider="apple" />
-                </div>
             </div>
 
-            <p className="mt-8 text-center text-sm text-slate-600">
-                Don&apos;t have an account?{' '}
-                <Link href="/register" className="font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
-                    Sign up
-                </Link>
-            </p>
+            <div className="text-center text-xs text-slate-500 mb-6">
+                Don't have an account ? <Link href="/register" className="font-bold text-[#0052FF] hover:underline">Sign up</Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <SocialButton provider="google" />
+                <SocialButton provider="facebook" />
+                <SocialButton provider="apple" />
+            </div>
         </AuthLayout>
     );
 }
