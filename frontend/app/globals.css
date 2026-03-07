@@ -1,0 +1,691 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.darkveil-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --- STEPPER CSS --- */
+.outer-container {
+  display: flex;
+  min-height: 100%;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.step-circle-container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 48rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding-bottom: 2rem;
+}
+
+.step-indicator-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 2rem;
+}
+
+.step-content-default {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 2rem;
+}
+
+.footer-container {
+  padding: 0 2rem;
+}
+
+.footer-nav {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.footer-nav.spread {
+  justify-content: space-between;
+}
+
+.footer-nav.end {
+  justify-content: flex-end;
+}
+
+.back-button {
+  transition: all 200ms;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.back-button:hover {
+  color: #334155;
+  background-color: #f1f5f9;
+}
+
+.next-button {
+  transition: all 200ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+}
+
+.next-button:hover {
+  background-color: #4f46e5;
+}
+
+.step-indicator {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  z-index: 10;
+}
+
+.step-indicator-inner {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.step-connector {
+  flex: 1;
+  height: 2px;
+  background-color: #e2e8f0;
+  margin: 0 0.5rem;
+  position: relative;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.step-connector-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: #6366f1;
+}
+
+.check-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --- PILL NAV CSS --- */
+.pill-nav-container {
+  position: sticky;
+  top: 1rem;
+  z-index: 50;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pill-nav {
+  pointer-events: auto;
+  --nav-h: 50px;
+  --logo: 42px;
+  --pill-pad-x: 24px;
+  --pill-gap: 4px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-radius: 9999px;
+  padding: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.pill-nav-items {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--nav-h);
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.pill-logo {
+  width: var(--nav-h);
+  height: var(--nav-h);
+  border-radius: 50%;
+  background: #6366f1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+.pill-list {
+  list-style: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--pill-gap);
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.pill-list>li {
+  display: flex;
+  height: 100%;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--pill-pad-x);
+  background: transparent;
+  color: #1e293b;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 15px;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.3s;
+}
+
+.pill:hover {
+  color: #6366f1;
+}
+
+.pill.is-active {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+  .pill-nav {
+    width: 90%;
+    justify-content: space-between;
+    padding: 8px 16px;
+  }
+}
+
+/* --- PROFILE CARD CSS --- */
+:root {
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --pointer-from-center: 0;
+  --pointer-from-top: 0.5;
+  --pointer-from-left: 0.5;
+  --card-opacity: 0;
+  --rotate-x: 0deg;
+  --rotate-y: 0deg;
+  --background-x: 50%;
+  --background-y: 50%;
+  --card-radius: 20px;
+}
+
+.pc-card-wrapper {
+  position: relative;
+  width: 320px;
+  height: 440px;
+  margin: auto;
+  perspective: 1000px;
+}
+
+.pc-card-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+  transition: transform 0.1s linear;
+  will-change: transform;
+  cursor: default;
+}
+
+.pc-card {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  background: var(--inner-gradient);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  transform-style: preserve-3d;
+}
+
+.pc-inside {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  transform: translateZ(20px);
+}
+
+.pc-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+  opacity: 0.6;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pc-glare {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.4), transparent 50%);
+  opacity: 0.4;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pc-behind {
+  position: absolute;
+  inset: 20px;
+  background: var(--behind-glow-color);
+  filter: blur(40px);
+  opacity: 0.6;
+  z-index: -1;
+  transform: translateZ(-20px);
+}
+
+.pc-avatar-content {
+  text-align: center;
+}
+
+.pc-user-info {
+  margin-top: 1rem;
+}
+
+
+/* --- STEPPER CSS --- */
+.outer-container {
+  display: flex;
+  min-height: 100%;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.step-circle-container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 48rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding-bottom: 2rem;
+}
+
+.step-indicator-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: 2rem;
+}
+
+.step-content-default {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 2rem;
+}
+
+.footer-container {
+  padding: 0 2rem;
+}
+
+.footer-nav {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.footer-nav.spread {
+  justify-content: space-between;
+}
+
+.footer-nav.end {
+  justify-content: flex-end;
+}
+
+.back-button {
+  transition: all 200ms;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.back-button:hover {
+  color: #334155;
+  background-color: #f1f5f9;
+}
+
+.next-button {
+  transition: all 200ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+}
+
+.next-button:hover {
+  background-color: #4f46e5;
+}
+
+.step-indicator {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  z-index: 10;
+}
+
+.step-indicator-inner {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.step-connector {
+  flex: 1;
+  height: 2px;
+  background-color: #e2e8f0;
+  margin: 0 0.5rem;
+  position: relative;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.step-connector-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background-color: #6366f1;
+}
+
+.check-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* --- PILL NAV CSS --- */
+.pill-nav-container {
+  position: sticky;
+  top: 1rem;
+  z-index: 50;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pill-nav {
+  pointer-events: auto;
+  --nav-h: 50px;
+  --logo: 42px;
+  --pill-pad-x: 24px;
+  --pill-gap: 4px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-radius: 9999px;
+  padding: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.pill-nav-items {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--nav-h);
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.pill-logo {
+  width: var(--nav-h);
+  height: var(--nav-h);
+  border-radius: 50%;
+  background: #6366f1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+.pill-list {
+  list-style: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--pill-gap);
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.pill-list>li {
+  display: flex;
+  height: 100%;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--pill-pad-x);
+  background: transparent;
+  color: #1e293b;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 15px;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.3s;
+}
+
+.pill:hover {
+  color: #6366f1;
+}
+
+.pill.is-active {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+  .pill-nav {
+    width: 90%;
+    justify-content: space-between;
+    padding: 8px 16px;
+  }
+}
+
+/* --- PROFILE CARD CSS --- */
+:root {
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --pointer-from-center: 0;
+  --pointer-from-top: 0.5;
+  --pointer-from-left: 0.5;
+  --card-opacity: 0;
+  --rotate-x: 0deg;
+  --rotate-y: 0deg;
+  --background-x: 50%;
+  --background-y: 50%;
+  --card-radius: 20px;
+}
+
+.pc-card-wrapper {
+  position: relative;
+  width: 320px;
+  height: 440px;
+  margin: auto;
+  perspective: 1000px;
+}
+
+.pc-card-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rotate-x)) rotateY(var(--rotate-y));
+  transition: transform 0.1s linear;
+  will-change: transform;
+  cursor: default;
+}
+
+.pc-card {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  background: var(--inner-gradient);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  transform-style: preserve-3d;
+}
+
+.pc-inside {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  transform: translateZ(20px);
+}
+
+.pc-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+  opacity: 0.6;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pc-glare {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.4), transparent 50%);
+  opacity: 0.4;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pc-behind {
+  position: absolute;
+  inset: 20px;
+  background: var(--behind-glow-color);
+  filter: blur(40px);
+  opacity: 0.6;
+  z-index: -1;
+  transform: translateZ(-20px);
+}
+
+.pc-avatar-content {
+  text-align: center;
+}
+
+.pc-user-info {
+  margin-top: 1rem;
+}
