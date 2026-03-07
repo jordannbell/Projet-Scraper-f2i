@@ -14,7 +14,7 @@ export default function LoginPage() {
 
     return (
         <AuthLayout mode="login">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-3">
                 <InputGroup
                     label="Email"
                     type="email"
@@ -35,7 +35,7 @@ export default function LoginPage() {
                     />
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pb-1">
                     <div className="flex items-center">
                         <input
                             id="remember-me"
@@ -43,7 +43,7 @@ export default function LoginPage() {
                             type="checkbox"
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
                         />
-                        <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 font-medium select-none">
+                        <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-300 font-medium select-none">
                             Remember me
                         </label>
                     </div>
@@ -58,31 +58,31 @@ export default function LoginPage() {
                 <div>
                     <button
                         type="submit"
-                        className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg text-[15px] font-semibold text-white bg-[#0052FF] hover:bg-[#0040DD] focus:outline-none transition-colors"
+                        className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg text-[15px] font-semibold text-white bg-[#0052FF] hover:bg-[#0040DD] focus:outline-none transition-colors"
                     >
                         Sign In
                     </button>
                 </div>
             </form>
 
-            <div className="mt-6 mb-6">
+            <div className="mt-4 mb-4">
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200" />
+                        <div className="w-full border-t border-white/10" />
                     </div>
                     <div className="relative flex justify-center text-xs">
-                        <span className="bg-white px-2 text-slate-400 font-medium">
+                        <span className="bg-[#0a0a0a] px-2 text-slate-400 font-medium">
                             OR
                         </span>
                     </div>
                 </div>
             </div>
 
-            <div className="text-center text-xs text-slate-500 mb-6">
+            <div className="text-center text-xs text-slate-500 mb-4">
                 Don't have an account ? <Link href="/register" className="font-bold text-[#0052FF] hover:underline">Sign up</Link>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
                 <SocialButton provider="google" />
                 <SocialButton provider="facebook" />
                 <SocialButton provider="apple" />

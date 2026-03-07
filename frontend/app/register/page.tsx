@@ -13,13 +13,6 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout mode="register">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Créer un compte</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Rejoignez Seekra pour booster votre carrière.
-        </p>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-5">
 
         <InputGroup
@@ -61,10 +54,10 @@ export default function RegisterPage() {
       <div className="mt-6 mb-6">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
+            <div className="w-full border-t border-white/10" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-slate-400 font-medium">
+            <span className="bg-[#0a0a0a] px-2 text-slate-400 font-medium">
               OR
             </span>
           </div>

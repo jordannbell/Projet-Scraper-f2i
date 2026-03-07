@@ -1,61 +1,55 @@
 'use client';
 
-import Antigravity from "@/components/Antigravity";
+import DarkVeil from "@/components/DarkVeil";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function Home() {
+  const { t } = useLanguage();
+
   return (
-    <main className="relative w-full h-screen overflow-hidden bg-slate-900 text-white">
+    <main className="relative w-full h-screen overflow-hidden bg-black text-white">
       {/* Background Effect */}
       <div className="absolute inset-0 z-0">
-        <Antigravity
-          count={150} // Lower count for performance
-          magnetRadius={8}
-          ringRadius={7}
-          waveSpeed={0.4}
-          waveAmplitude={1}
-          particleSize={1.5}
-          lerpSpeed={0.05}
-          color="#6366f1" // Indigo-500 matching branding
-          autoAnimate
-          particleVariance={1}
-          rotationSpeed={0}
-          depthFactor={1}
-          pulseSpeed={3}
-          particleShape="capsule"
-          fieldStrength={10}
+        <DarkVeil
+          hueShift={0}
+          noiseIntensity={0.05}
+          scanlineIntensity={0.1}
+          speed={0.5}
+          scanlineFrequency={0.1}
+          warpAmount={0.2}
         />
       </div>
 
       {/* Content Overlay */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center pointer-events-none">
 
-        {/* Title and Text need pointer-events-auto if they have links, but here it's just text */}
-        <h1 className="text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 drop-shadow-sm">
-          Seekra
+        {/* Title and Text */}
+        <h1 className="text-6xl md:text-8xl font-bold mb-6 text-white drop-shadow-lg tracking-tight">
+          {t('home.title')}
         </h1>
 
-        <p className="text-xl md:text-2xl text-slate-300 max-w-2xl mb-12 font-light">
-          L&apos;intelligence artificielle au service de votre carrière.
+        <p className="text-2xl md:text-4xl text-white max-w-4xl mb-12 font-medium leading-relaxed drop-shadow-md">
+          {t('home.subtitle1')}
           <br />
-          <span className="text-indigo-300 font-medium">Ne cherchez plus, trouvez.</span>
+          <span className="text-indigo-300">{t('home.subtitle2')}</span>
         </p>
 
         <div className="pointer-events-auto">
           <Link
             href="/dashboard"
-            className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-slate-900 transition-all duration-200 bg-white font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 hover:scale-105 hover:shadow-[0_0_40px_rgba(99,102,241,0.6)]"
+            className="group relative inline-flex items-center justify-center px-10 py-4 text-lg font-bold text-black transition-all duration-300 bg-white rounded-full hover:scale-105 hover:bg-slate-100 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]"
             role="button"
           >
-            DÉMARRER L&apos;EXPÉRIENCE
-            <svg className="w-5 h-5 ml-2 -mr-1 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            {t('home.start_button')}
+            <svg className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </Link>
         </div>
 
-        <div className="absolute bottom-8 text-slate-500 text-sm">
-          Seekra © 2026 • Powered by AI
+        <div className="absolute bottom-8 text-white/50 text-sm">
+          {t('home.footer')}
         </div>
       </div>
     </main>
