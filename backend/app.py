@@ -191,7 +191,7 @@ with st.sidebar:
     user_skills = [s.strip().lower() for s in skills_input.split(",")]
     
     st.markdown("---")
-    st.caption("Seekra v1.0 • Propulsé par IA")
+    st.caption("Seekra v1.0 • Propulsé par J&L")
 
 # --------------------------------------------------------------------------
 # 4. PAGE PRINCIPALE

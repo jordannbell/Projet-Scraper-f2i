@@ -70,8 +70,7 @@ export default function RegisterPage() {
 
       <div className="flex flex-col gap-3">
         <SocialButton provider="google" />
-        <SocialButton provider="facebook" />
-        <SocialButton provider="apple" />
+        <SocialButton provider="linkedin" />
       </div>
     </AuthLayout>
   );

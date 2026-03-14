@@ -80,9 +80,11 @@ class RecommendationSystem:
             title = job.get('title') or job.get('titre') or ''
             desc = job.get('description') or ''
             company = job.get('company_location') or job.get('entreprise_lieu') or ''
+            # Scraper returned 'lien', DB used 'url'
             url = job.get('url') or job.get('lien') or ''
             
-            full_text = f"{title} {desc}"
+            # The NLP needs to actually see the text to find keywords
+            full_text = f"{title} {desc} {company}"
             
             # Extraction (en temps réel pour l'instant, idéalement pré-calculé)
             job_skills_dict = self.nlp.extract_skills(full_text)
@@ -93,14 +95,14 @@ class RecommendationSystem:
             # Calcul du score
             score = self.nlp.calculate_match_score(job_skills_list, user_profile_skills)
             
-            if score > 0:
-                scored_jobs.append({
-                    "titre": title,
-                    "entreprise": company,
-                    "score": score,
-                    "skills_found": job_skills_list,
-                    "url": url
-                })
+            # Append job regardless of score so we don't return empty lists for valid scraped jobs
+            scored_jobs.append({
+                "titre": title,
+                "entreprise": company,
+                "score": score,
+                "skills_found": job_skills_list,
+                "url": url
+            })
         
         # Trier par score décroissant
         scored_jobs.sort(key=lambda x: x['score'], reverse=True)

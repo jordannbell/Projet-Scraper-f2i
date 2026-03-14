@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { User, Globe } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { supabase } from '@/utils/supabase/client';
+import { useEffect, useState } from 'react';
 
 export default function Navbar() {
     const { t, language, setLanguage } = useLanguage();
@@ -15,6 +17,25 @@ export default function Navbar() {
     const toggleLanguage = () => {
         setLanguage(language === 'fr' ? 'en' : 'fr');
     };
+
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setIsLoggedIn(!!session);
+        };
+
+        checkSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event, session) => {
+                setIsLoggedIn(!!session);
+            }
+        );
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     return (
         <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
@@ -50,9 +71,9 @@ export default function Navbar() {
                             {language.toUpperCase()}
                         </button>
                         <Link
-                            href="/login"
+                            href={isLoggedIn ? "/profile" : "/login"}
                             className="text-slate-300 hover:text-white transition-colors p-1.5 rounded-md border border-white/20 hover:bg-white/10"
-                            aria-label="Profil Utilisateur"
+                            aria-label={isLoggedIn ? "Profil Utilisateur" : "Se Connecter"}
                         >
                             <User className="w-5 h-5" />
                         </Link>
