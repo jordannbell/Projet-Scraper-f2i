@@ -47,7 +47,7 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
                     {/* Illustration */}
                     <div className="relative w-full max-w-[350px] xl:max-w-[450px] aspect-square flex-shrink-1 min-h-0 mt-4">
                         <Image
-                            src="/assets/21.png"
+                            src="/assets/6.png"
                             alt="Seekra Mascot"
                             fill
                             className="object-contain object-bottom"

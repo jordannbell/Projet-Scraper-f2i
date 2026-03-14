@@ -1,10 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from '@/utils/supabase/client';
 
 interface SocialButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    provider: 'google' | 'facebook' | 'apple';
+    provider: 'google' | 'facebook' | 'apple' | 'linkedin';
 }
 
 export default function SocialButton({ provider, className = "", ...props }: SocialButtonProps) {
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async () => {
+        try {
+            setLoading(true);
+            const authProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: authProvider as any,
+                options: {
+                    redirectTo: `${window.location.origin}/dashboard`
+                }
+            });
+            if (error) throw error;
+        } catch (error) {
+            console.error(`Error logging in with ${provider}:`, error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const config = {
         google: {
@@ -42,6 +63,17 @@ export default function SocialButton({ provider, className = "", ...props }: Soc
             bg: 'bg-white/10 hover:bg-white/20',
             text: 'text-white',
             border: 'border border-white/20'
+        },
+        linkedin: {
+            label: 'Sign in with LinkedIn',
+            icon: (
+                <svg className="w-5 h-5 mr-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.22 24 24 23.227 24 22.271V1.729C24 .774 23.22 0 22.225 0z" />
+                </svg>
+            ),
+            bg: 'bg-[#0077b5] hover:bg-[#005582]',
+            text: 'text-white',
+            border: 'border border-[#0077b5]'
         }
     };
 
@@ -50,14 +82,18 @@ export default function SocialButton({ provider, className = "", ...props }: Soc
     return (
         <button
             type="button"
+            onClick={handleLogin}
+            disabled={loading}
             className={`
         w-full flex items-center justify-center px-4 py-3 rounded-lg font-bold text-[13px] transition-colors focus:outline-none
         ${c.bg} ${c.text} ${c.border}
+        ${loading ? 'opacity-70 cursor-not-allowed' : ''}
         ${className}
       `}
             {...props}
         >
-            {provider !== 'apple' && provider !== 'facebook' && c.icon}
+            {provider !== 'apple' && provider !== 'facebook' && provider !== 'linkedin' && c.icon}
+            {provider === 'linkedin' && c.icon}
             {provider === 'facebook' && (
                 <svg className="w-4 h-4 mr-2 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -68,7 +104,7 @@ export default function SocialButton({ provider, className = "", ...props }: Soc
                     <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.29-1.23 3.57-1.23.6 0 1.7.16 2.42.83-2.11 1.08-2.35 4.67-.02 5.63.24 1.11.82 2.85 1.76 2.85zm-4.04-16c.57 0 1.25.16 1.76.63.5.5.99 1.11.89 1.95-.91.07-1.96-.28-2.35-.91-.39-.5-.87-1.11-.3-1.67z" />
                 </svg>
             )}
-            {c.label}
+            {loading ? 'Connexion...' : c.label}
         </button>
     );
 }

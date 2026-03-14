@@ -84,8 +84,7 @@ export default function LoginPage() {
 
             <div className="flex flex-col gap-2.5">
                 <SocialButton provider="google" />
-                <SocialButton provider="facebook" />
-                <SocialButton provider="apple" />
+                <SocialButton provider="linkedin" />
             </div>
         </AuthLayout>
     );

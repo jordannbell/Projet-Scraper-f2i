@@ -95,6 +95,6 @@ st.markdown("""
 # Footer discret
 st.markdown("""
 <div style="position:fixed; bottom:20px; width:100%; text-align:center; color:#475569; font-size:0.8rem;">
-    Seekra © 2026 • Powered by AI
+    Seekra © 2026 • Powered by J&L
 </div>
 """, unsafe_allow_html=True)
