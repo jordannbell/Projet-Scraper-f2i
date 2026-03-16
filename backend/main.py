@@ -9,6 +9,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from scrapers.france_travail_scrapers import scrape_france_travail
+from scrapers.hellowork_scraper import scrape_hellowork
 from analysis.recommender import RecommendationSystem
 
 app = FastAPI(title="Seekra API", description="API for Job Search & Recommendation")
@@ -54,7 +55,15 @@ def read_root():
 def search_jobs(request: JobSearchRequest):
     print(f"Searching for {request.keyword} ({request.max_pages} pages)")
     try:
-        jobs = scrape_france_travail(search_keyword=request.keyword, max_pages=request.max_pages)
+        # Scrape France Travail
+        jobs_ft = scrape_france_travail(search_keyword=request.keyword, max_pages=request.max_pages)
+        
+        # Scrape HelloWork
+        jobs_hw = scrape_hellowork(search_keyword=request.keyword, max_pages=request.max_pages)
+        
+        # Combine results
+        jobs = jobs_ft + jobs_hw
+        
         return {"count": len(jobs), "jobs": jobs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

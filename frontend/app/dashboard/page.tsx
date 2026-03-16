@@ -402,11 +402,9 @@ export default function Dashboard() {
                                     })}
                                 </div>
 
-                                <button onClick={() => {
-                                    if (!isLoggedIn) setShowRegisterPrompt(true);
-                                }} className="w-full bg-[#0052FF] hover:bg-[#0040DD] text-white font-semibold py-3.5 rounded-xl transition-colors mt-auto text-[15px]">
+                                <a href={job.url || job.lien || '#'} target="_blank" rel="noopener noreferrer" className="block text-center w-full bg-[#0052FF] hover:bg-[#0040DD] text-white font-semibold py-3.5 rounded-xl transition-colors mt-auto text-[15px]">
                                     Apply Now
-                                </button>
+                                </a>
                             </div>
                         ))}
                     </div>
