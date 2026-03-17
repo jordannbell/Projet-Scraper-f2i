@@ -126,7 +126,8 @@ def scrape_hellowork(search_keyword: str, max_pages: int = 1) -> List[Dict]:
                         "type_contrat": contract,
                         "description": desc,
                         "date_publication": date_pub,
-                        "lien": lien
+                        "lien": lien,
+                        "source": "HelloWork"
                     }
                     
                     all_jobs.append(job_data)

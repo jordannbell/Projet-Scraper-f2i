@@ -1,41 +1,96 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/utils/supabase/client';
 import { Search, MapPin, ArrowRight, Bookmark, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
+const DEFAULT_KEYWORD = 'Product Designer';
+const DEFAULT_SKILLS = 'python, sql, power bi, anglais, data visualization';
+const DEFAULT_CONTRACT: string[] = ['Full-time'];
+const DEFAULT_DATE = 'Last 7 days';
+const DEFAULT_SORT = 'Relevance';
+
 interface Job {
-    id: string;
+    id?: string;
     titre: string;
     entreprise: string;
     entreprise_lieu?: string;
     score: number;
     skills_found: string[];
     url: string;
+    source?: string;
+    type_contrat?: string;
+    date_publication?: string;
+}
+
+function parseDateToSortKey(dateStr: string | undefined): number {
+    if (!dateStr) return Infinity;
+    const s = dateStr.toLowerCase();
+    const match = s.match(/(?:il y a\s+)?(\d+)\s*(?:day|jour)/);
+    if (match) return parseInt(match[1], 10);
+    if (/today|aujourd|hier|yesterday/.test(s)) return 0;
+    const iso = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return (Date.now() - new Date(iso[0]).getTime()) / (1000 * 60 * 60 * 24);
+    return Infinity;
 }
 
 export default function Dashboard() {
     const { t } = useLanguage();
-    const [keyword, setKeyword] = useState('Product Designer');
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const [keyword, setKeyword] = useState(DEFAULT_KEYWORD);
     const [pages] = useState(2);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<Job[] | null>(null);
     const [status, setStatus] = useState('');
 
-    // Core filters state
-    const [skills, setSkills] = useState('python, sql, power bi, anglais, data visualization');
-    const [contractTypes, setContractTypes] = useState<string[]>(['Full-time']);
-    const [datePosted, setDatePosted] = useState('Last 7 days');
-    const [sortBy, setSortBy] = useState('Relevance');
+    const [skills, setSkills] = useState(DEFAULT_SKILLS);
+    const [contractTypes, setContractTypes] = useState<string[]>(DEFAULT_CONTRACT);
+    const [datePosted, setDatePosted] = useState(DEFAULT_DATE);
+    const [sortBy, setSortBy] = useState(DEFAULT_SORT);
+
+    // Read filters from URL on mount
+    useEffect(() => {
+        const q = searchParams.get('q');
+        const sk = searchParams.get('skills');
+        const contract = searchParams.get('contract');
+        const date = searchParams.get('date');
+        const sort = searchParams.get('sort');
+        if (q != null) setKeyword(decodeURIComponent(q));
+        if (sk != null) setSkills(decodeURIComponent(sk));
+        if (contract != null) setContractTypes(decodeURIComponent(contract).split(',').map(s => s.trim()).filter(Boolean));
+        if (date != null) setDatePosted(decodeURIComponent(date).replace(/_/g, ' '));
+        if (sort != null) setSortBy(decodeURIComponent(sort));
+    }, []);
+
+    // Sync filter state to URL (one-way: state -> URL)
+    const updateUrl = useCallback(() => {
+        const params = new URLSearchParams();
+        if (keyword) params.set('q', keyword);
+        if (skills) params.set('skills', skills);
+        if (contractTypes.length) params.set('contract', contractTypes.join(','));
+        if (datePosted && datePosted !== 'Any time') params.set('date', datePosted.replace(/\s/g, '_'));
+        if (sortBy && sortBy !== DEFAULT_SORT) params.set('sort', sortBy);
+        const qs = params.toString();
+        router.replace(pathname + (qs ? '?' + qs : ''), { scroll: false });
+    }, [keyword, skills, contractTypes, datePosted, sortBy, pathname, router]);
+
+    useEffect(() => {
+        updateUrl();
+    }, [updateUrl]);
 
     const clearFilters = () => {
         setSkills('');
         setContractTypes([]);
         setDatePosted('Any time');
         setKeyword('');
-        setSortBy('Relevance');
+        setSortBy(DEFAULT_SORT);
+        router.replace(pathname, { scroll: false });
     };
 
     // Auth and presentation state
@@ -80,8 +135,9 @@ export default function Dashboard() {
                         entreprise: 'TechCorp',
                         entreprise_lieu: 'San Francisco, CA',
                         score: 92,
-                        skills_found: ['INDEED', 'FULL-TIME', 'REMOTE FRIENDLY'],
-                        url: '/login'
+                        skills_found: ['FULL-TIME', 'REMOTE FRIENDLY'],
+                        url: '/login',
+                        source: 'Indeed'
                     },
                     {
                         id: 'mock-2',
@@ -89,8 +145,9 @@ export default function Dashboard() {
                         entreprise: 'DesignStudio',
                         entreprise_lieu: 'Remote',
                         score: 85,
-                        skills_found: ['LINKEDIN', 'CONTRACT'],
-                        url: '/login'
+                        skills_found: ['CONTRACT'],
+                        url: '/login',
+                        source: 'HelloWork'
                     },
                     {
                         id: 'mock-3',
@@ -98,8 +155,9 @@ export default function Dashboard() {
                         entreprise: 'GlobalSystems',
                         entreprise_lieu: 'Palo Alto, CA',
                         score: 88,
-                        skills_found: ['GLASSDOOR', 'FULL-TIME'],
-                        url: '/login'
+                        skills_found: ['FULL-TIME'],
+                        url: '/login',
+                        source: 'Adzuna'
                     },
                     {
                         id: 'mock-4',
@@ -107,8 +165,9 @@ export default function Dashboard() {
                         entreprise: 'CreativeFlow',
                         entreprise_lieu: 'San Jose, CA',
                         score: 78,
-                        skills_found: ['INDEED', 'FULL-TIME'],
-                        url: '/login'
+                        skills_found: ['FULL-TIME'],
+                        url: '/login',
+                        source: 'France Travail'
                     }
                 ]);
                 setLoading(false);
@@ -140,7 +199,11 @@ export default function Dashboard() {
             setStatus((t('dashboard.status_analyzing') || 'Analyzing {count} offers').replace('{count}', searchData.count.toString()));
 
             const userSkills = skills.split(',').map(s => s.trim().toLowerCase()).filter(s => s);
-            const bodyPayload = userSkills.length > 0 ? { skills: userSkills, jobs: searchData.jobs } : { skills: ['design'], jobs: searchData.jobs };
+            const bodyPayload: { skills: string[]; jobs: unknown[]; contract_types?: string[]; date_posted?: string } = userSkills.length > 0
+                ? { skills: userSkills, jobs: searchData.jobs }
+                : { skills: ['design'], jobs: searchData.jobs };
+            if (contractTypes.length > 0) bodyPayload.contract_types = contractTypes;
+            if (datePosted && datePosted !== 'Any time') bodyPayload.date_posted = datePosted;
 
             const recRes = await fetch('http://127.0.0.1:8000/api/recommend', {
                 method: 'POST',
@@ -149,8 +212,14 @@ export default function Dashboard() {
             });
 
             if (!recRes.ok) throw new Error(t('dashboard.status_error_rec') || 'Recommendation error');
-            const recData = await recRes.json();
-
+            let recData: Job[] = await recRes.json();
+            // #region agent log
+            const indeedCount = Array.isArray(recData) ? recData.filter((r: { source?: string }) => r?.source === 'Indeed').length : 0;
+            fetch('http://127.0.0.1:7874/ingest/5ae0bf75-39ff-4983-ae13-c98caab225e6', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '091a4a' }, body: JSON.stringify({ sessionId: '091a4a', location: 'dashboard/page.tsx:recData', message: 'recommendations received', data: { total: Array.isArray(recData) ? recData.length : 0, indeedCount }, hypothesisId: 'H4', timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
+            if (sortBy === 'Date' && Array.isArray(recData)) {
+                recData = [...recData].sort((a, b) => parseDateToSortKey(a.date_publication) - parseDateToSortKey(b.date_publication));
+            }
             setResults(recData);
             setStatus('');
 
@@ -361,11 +430,18 @@ export default function Dashboard() {
                             <div key={idx} className="bg-[#111111] rounded-2xl p-6 border border-white/5 hover:border-white/20 transition-all group flex flex-col h-full hover:bg-[#141414]">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center mb-4 text-white font-bold text-xl overflow-hidden shrink-0">
-                                        {job.entreprise.charAt(0)}
+                                        {job.entreprise?.charAt(0) || '?'}
                                     </div>
-                                    <button className="text-slate-500 hover:text-[#0052FF] transition-colors p-1">
-                                        <Bookmark className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        {job.source && (
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded bg-white/10 text-slate-400 border border-white/5">
+                                                {job.source}
+                                            </span>
+                                        )}
+                                        <button className="text-slate-500 hover:text-[#0052FF] transition-colors p-1">
+                                            <Bookmark className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="mb-4">

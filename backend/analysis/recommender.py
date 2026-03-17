@@ -1,6 +1,7 @@
 from config.database import SupabaseManager
 from analysis.nlp_engine import NLPEngine
 import json
+import os
 
 class RecommendationSystem:
     def __init__(self):
@@ -62,6 +63,17 @@ class RecommendationSystem:
         if jobs_data:
             print("[INFO] Utilisation des données locales (CSV/Mémoire) pour la recommandation.")
             jobs = jobs_data
+            # #region agent log
+            indeed_in = sum(1 for j in jobs if (str(j.get("id") or "").startswith("INDEED-")) or j.get("source") == "Indeed")
+            _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            _log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
+            try:
+                os.makedirs(os.path.dirname(_log_path), exist_ok=True)
+            except Exception:
+                pass
+            with open(_log_path, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId": "091a4a", "location": "recommender.py:get_recommendations:input", "message": "jobs_data received", "data": {"total": len(jobs), "indeed_count": indeed_in}, "hypothesisId": "H2", "timestamp": __import__("time").time() * 1000}) + "\n")
+            # #endregion
         elif self.db.client:
             print("[INFO] Utilisation de la base de données Supabase.")
             response = self.db.client.table("job_offers").select("*").execute()
@@ -96,15 +108,48 @@ class RecommendationSystem:
             score = self.nlp.calculate_match_score(job_skills_list, user_profile_skills)
             
             # Append job regardless of score so we don't return empty lists for valid scraped jobs
+            source = job.get("source") or ""
+            if not source and job.get("id"):
+                pid = str(job.get("id", ""))
+                if pid.startswith("HW-"): source = "HelloWork"
+                elif pid.startswith("INDEED-"): source = "Indeed"
+                elif pid.startswith("ADZUNA-"): source = "Adzuna"
+                else: source = "France Travail"
             scored_jobs.append({
                 "titre": title,
                 "entreprise": company,
+                "entreprise_lieu": job.get("entreprise_lieu") or company,
                 "score": score,
                 "skills_found": job_skills_list,
-                "url": url
+                "url": url,
+                "source": source,
+                "type_contrat": job.get("type_contrat") or "",
+                "date_publication": job.get("date_publication") or "",
             })
         
         # Trier par score décroissant
         scored_jobs.sort(key=lambda x: x['score'], reverse=True)
-        
-        return scored_jobs[:top_n]
+        out = list(scored_jobs[:top_n])
+        out_ids = {id(r) for r in out}
+        # Garantir une représentation minimale par source (ex. Indeed souvent en fin de liste)
+        MIN_PER_SOURCE = 10
+        for source_name in ("Indeed", "Adzuna", "HelloWork", "France Travail"):
+            if sum(1 for r in out if r.get("source") == source_name) > 0:
+                continue
+            from_source = [r for r in scored_jobs if r.get("source") == source_name]
+            for r in from_source[:MIN_PER_SOURCE]:
+                if id(r) not in out_ids:
+                    out.append(r)
+                    out_ids.add(id(r))
+        # #region agent log
+        indeed_out = sum(1 for r in out if r.get("source") == "Indeed")
+        _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
+        try:
+            os.makedirs(os.path.dirname(_log_path), exist_ok=True)
+        except Exception:
+            pass
+        with open(_log_path, "a", encoding="utf-8") as _f:
+            _f.write(json.dumps({"sessionId": "091a4a", "location": "recommender.py:get_recommendations:output", "message": "scored_jobs returned", "data": {"total": len(out), "indeed_count": indeed_out, "top_n": top_n}, "hypothesisId": "H3", "timestamp": __import__("time").time() * 1000}) + "\n")
+        # #endregion
+        return out
