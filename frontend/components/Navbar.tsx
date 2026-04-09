@@ -58,6 +58,11 @@ export default function Navbar() {
                                 {item.label}
                             </Link>
                         ))}
+                        {isLoggedIn && (
+                            <Link href="/auto-apply" className="text-amber-400 hover:text-amber-300 text-sm font-bold flex items-center transition-colors drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]">
+                                Auto-Apply 🤖
+                            </Link>
+                        )}
                     </div>
 
                     {/* Droite: Actions */}

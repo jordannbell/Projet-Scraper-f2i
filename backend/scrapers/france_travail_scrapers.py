@@ -72,7 +72,8 @@ def extract_job_data(soup):
                 'type_contrat': contrat,
                 'description': description,
                 'date_publication': date,
-                'lien': lien
+                'lien': lien,
+                'source': 'France Travail'
             }
             
             jobs.append(job)
