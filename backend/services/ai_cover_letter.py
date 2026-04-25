@@ -1,17 +1,13 @@
-import os
-from google import genai
+from services.llm_text import generate_plain_text, get_text_backend
 
-# Configure Gemini API using the new google-genai client
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
 
 def generate_cover_letter(job_data: dict, target_title: str, target_keywords: str) -> str:
     """
-    Generates a personalized cover letter using Gemini based on the job offer and user profile.
+    Lettre de motivation personnalisée (Groq ou Gemini selon LLM_PROVIDER).
     """
-    job_title = job_data.get('titre', '')
-    job_desc = job_data.get('description', '')
-    company = job_data.get('entreprise_lieu', '')
+    job_title = job_data.get("titre", "")
+    job_desc = job_data.get("description", "")
+    company = job_data.get("entreprise_lieu", "")
 
     prompt = f"""
 Tu es un candidat à la recherche d'un emploi. Rédige une lettre de motivation professionnelle 
@@ -31,11 +27,10 @@ Détails de l'offre :
 Rédige la lettre de motivation :
 """
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        return response.text.strip()
+        if get_text_backend() == "none":
+            return "Aucune clé API LLM configurée (GROQ_API_KEY ou GEMINI_API_KEY)."
+
+        return generate_plain_text(prompt, temperature=0.45, max_tokens=2048)
     except Exception as e:
         print(f"Error generating cover letter: {e}")
         return "Erreur lors de la génération de la lettre de motivation."

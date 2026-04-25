@@ -8,7 +8,7 @@ export default function Home() {
   const { t } = useLanguage();
 
   return (
-    <main className="relative w-full h-screen overflow-hidden bg-black text-white">
+    <main className="app-shell relative min-h-screen w-full overflow-hidden text-white">
       {/* Background Effect */}
       <div className="absolute inset-0 z-0">
         <DarkVeil
@@ -22,23 +22,23 @@ export default function Home() {
       </div>
 
       {/* Content Overlay */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 text-center pointer-events-none">
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 pb-10 pt-24 text-center pointer-events-none">
 
         {/* Title and Text */}
-        <h1 className="text-6xl md:text-8xl font-bold mb-6 text-white drop-shadow-lg tracking-tight">
+        <h1 className="premium-title mb-6 max-w-5xl text-white drop-shadow-lg">
           {t('home.title')}
         </h1>
 
-        <p className="text-2xl md:text-4xl text-white max-w-4xl mb-12 font-medium leading-relaxed drop-shadow-md">
+        <p className="mb-12 max-w-3xl text-lg md:text-2xl text-slate-200 leading-relaxed drop-shadow-md">
           {t('home.subtitle1')}
           <br />
-          <span className="text-indigo-300">{t('home.subtitle2')}</span>
+          <span className="text-blue-300">{t('home.subtitle2')}</span>
         </p>
 
         <div className="pointer-events-auto">
           <Link
             href="/dashboard"
-            className="group relative inline-flex items-center justify-center px-10 py-4 text-lg font-bold text-black transition-all duration-300 bg-white rounded-full hover:scale-105 hover:bg-slate-100 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]"
+            className="btn-primary group relative inline-flex items-center justify-center px-10 py-4 text-lg"
             role="button"
           >
             {t('home.start_button')}
@@ -48,7 +48,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="absolute bottom-8 text-white/50 text-sm">
+        <div className="absolute bottom-8 text-sm text-slate-400">
           {t('home.footer')}
         </div>
       </div>

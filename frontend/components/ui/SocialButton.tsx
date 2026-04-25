@@ -11,9 +11,10 @@ export default function SocialButton({ provider, className = "", ...props }: Soc
     const handleLogin = async () => {
         try {
             setLoading(true);
-            const authProvider = provider === 'linkedin' ? 'linkedin_oidc' : provider;
-            const { data, error } = await supabase.auth.signInWithOAuth({
-                provider: authProvider as any,
+            const authProvider: 'google' | 'facebook' | 'apple' | 'linkedin_oidc' =
+                provider === 'linkedin' ? 'linkedin_oidc' : provider;
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: authProvider,
                 options: {
                     redirectTo: `${window.location.origin}/dashboard`
                 }
@@ -85,9 +86,9 @@ export default function SocialButton({ provider, className = "", ...props }: Soc
             onClick={handleLogin}
             disabled={loading}
             className={`
-        w-full flex items-center justify-center px-4 py-3 rounded-lg font-bold text-[13px] transition-colors focus:outline-none
+        w-full flex items-center justify-center px-4 py-3 rounded-xl font-semibold text-[13px] transition-all duration-200 focus:outline-none border
         ${c.bg} ${c.text} ${c.border}
-        ${loading ? 'opacity-70 cursor-not-allowed' : ''}
+        ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}
         ${className}
       `}
             {...props}

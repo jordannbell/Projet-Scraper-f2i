@@ -90,7 +90,7 @@ export default function Stepper({
                                     renderStepIndicator({
                                         step: stepNumber,
                                         currentStep,
-                                        onStepClick: (clicked) => {
+                                        onStepClick: (clicked: number) => {
                                             setDirection(clicked > currentStep ? 1 : -1);
                                             updateStep(clicked);
                                         }
@@ -100,7 +100,7 @@ export default function Stepper({
                                         step={stepNumber}
                                         disableStepIndicators={disableStepIndicators}
                                         currentStep={currentStep}
-                                        onClickStep={(clicked) => {
+                                        onClickStep={(clicked: number) => {
                                             setDirection(clicked > currentStep ? 1 : -1);
                                             updateStep(clicked);
                                         }}

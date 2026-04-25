@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/utils/supabase/client';
+import { apiFetch } from '@/utils/api';
 import { Search, MapPin, ArrowRight, Bookmark, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 const DEFAULT_KEYWORD = 'Product Designer';
 const DEFAULT_SKILLS = 'python, sql, power bi, anglais, data visualization';
-const DEFAULT_CONTRACT: string[] = ['Full-time'];
+const DEFAULT_CONTRACT: string[] = [];
 const DEFAULT_DATE = 'Last 7 days';
 const DEFAULT_SORT = 'Relevance';
 
@@ -21,6 +22,7 @@ interface Job {
     score: number;
     skills_found: string[];
     url: string;
+    lien?: string;
     source?: string;
     type_contrat?: string;
     date_publication?: string;
@@ -39,7 +41,6 @@ function parseDateToSortKey(dateStr: string | undefined): number {
 
 export default function Dashboard() {
     const { t } = useLanguage();
-    const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
 
@@ -56,11 +57,12 @@ export default function Dashboard() {
 
     // Read filters from URL on mount
     useEffect(() => {
-        const q = searchParams.get('q');
-        const sk = searchParams.get('skills');
-        const contract = searchParams.get('contract');
-        const date = searchParams.get('date');
-        const sort = searchParams.get('sort');
+        const params = new URLSearchParams(window.location.search);
+        const q = params.get('q');
+        const sk = params.get('skills');
+        const contract = params.get('contract');
+        const date = params.get('date');
+        const sort = params.get('sort');
         if (q != null) setKeyword(decodeURIComponent(q));
         if (sk != null) setSkills(decodeURIComponent(sk));
         if (contract != null) setContractTypes(decodeURIComponent(contract).split(',').map(s => s.trim()).filter(Boolean));
@@ -181,9 +183,8 @@ export default function Dashboard() {
         setResults(null);
 
         try {
-            const searchRes = await fetch('http://127.0.0.1:8000/api/jobs/search', {
+            const searchRes = await apiFetch('/api/jobs/search', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ keyword, max_pages: pages }),
             });
 
@@ -205,18 +206,13 @@ export default function Dashboard() {
             if (contractTypes.length > 0) bodyPayload.contract_types = contractTypes;
             if (datePosted && datePosted !== 'Any time') bodyPayload.date_posted = datePosted;
 
-            const recRes = await fetch('http://127.0.0.1:8000/api/recommend', {
+            const recRes = await apiFetch('/api/recommend', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bodyPayload),
             });
 
             if (!recRes.ok) throw new Error(t('dashboard.status_error_rec') || 'Recommendation error');
             let recData: Job[] = await recRes.json();
-            // #region agent log
-            const indeedCount = Array.isArray(recData) ? recData.filter((r: { source?: string }) => r?.source === 'Indeed').length : 0;
-            fetch('http://127.0.0.1:7874/ingest/5ae0bf75-39ff-4983-ae13-c98caab225e6', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '091a4a' }, body: JSON.stringify({ sessionId: '091a4a', location: 'dashboard/page.tsx:recData', message: 'recommendations received', data: { total: Array.isArray(recData) ? recData.length : 0, indeedCount }, hypothesisId: 'H4', timestamp: Date.now() }) }).catch(() => {});
-            // #endregion
             if (sortBy === 'Date' && Array.isArray(recData)) {
                 recData = [...recData].sort((a, b) => parseDateToSortKey(a.date_publication) - parseDateToSortKey(b.date_publication));
             }
@@ -231,20 +227,20 @@ export default function Dashboard() {
         }
     };
 
-    const contractOptions = ['Full-time', 'Part-time', 'Contract', 'Remote'];
+    const contractOptions = ['CDI', 'CDD', 'Alternance', 'Stage', 'Freelance', 'Temps partiel', 'Télétravail'];
 
     return (
-        <div className="flex h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden">
+        <div className="app-shell flex h-screen overflow-hidden font-sans text-white">
             {/* Modal */}
             {showRegisterPrompt && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] px-4">
-                    <div className="bg-[#111111] border border-white/10 p-8 rounded-2xl shadow-xl max-w-lg w-full text-center transform transition-all">
+                    <div className="premium-card w-full max-w-lg p-8 text-center transition-all">
                         <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">{t('dashboard.modal_title') || 'Create an Account'}</h2>
                         <p className="text-slate-400 mb-8 text-lg">
-                            {t('dashboard.modal_desc1') || 'To apply, you need to be registered.'} <span className="font-bold text-[#0052FF]">{t('dashboard.modal_desc2') || 'Register now'}</span> {t('dashboard.modal_desc3') || 'to access full features.'}
+                            {t('dashboard.modal_desc1') || 'To apply, you need to be registered.'} <span className="font-bold text-blue-300">{t('dashboard.modal_desc2') || 'Register now'}</span> {t('dashboard.modal_desc3') || 'to access full features.'}
                         </p>
                         <div className="flex flex-col gap-4">
-                            <Link href="/register" className="bg-[#0052FF] text-white font-semibold py-3 px-6 rounded-lg hover:bg-[#0040DD] transition-all transform hover:-translate-y-0.5">
+                            <Link href="/register" className="btn-primary px-6 py-3">
                                 {t('dashboard.modal_btn_register') || 'Create Account'}
                             </Link>
                             <button
@@ -261,7 +257,7 @@ export default function Dashboard() {
             {/* Main Content Area Container that holds both sidebar and right grid */}
             <div className="flex w-full max-w-[1600px] mx-auto pt-20 h-full"> {/* pt-20 to push below the navbar */}
                 {/* Sidebar */}
-                <aside className="w-64 lg:w-72 flex-shrink-0 flex flex-col p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] border-r border-white/5 h-full">
+                <aside className="h-full w-64 flex-shrink-0 flex-col overflow-y-auto border-r border-slate-600/20 p-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] lg:w-72">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-2">
                             <SlidersHorizontal className="w-5 h-5 text-slate-300" />
@@ -287,7 +283,7 @@ export default function Dashboard() {
                             <textarea
                                 value={skills}
                                 onChange={(e) => setSkills(e.target.value)}
-                                className="w-full bg-[#111111] border border-white/10 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-[#0052FF] focus:bg-[#161616] transition-colors min-h-[140px] resize-y placeholder:text-slate-600"
+                                className="min-h-[140px] w-full resize-y rounded-xl border border-slate-500/25 bg-slate-900/70 p-3.5 text-sm text-white transition-colors placeholder:text-slate-600 focus:border-blue-400 focus:bg-slate-900 focus:outline-none"
                                 placeholder="python, sql, power bi..."
                             />
                         </div>
@@ -330,12 +326,12 @@ export default function Dashboard() {
                         </div>
 
                         {/* Job Alerts */}
-                        <div className="mt-8 bg-[#111111] border border-[#0052FF]/20 bg-gradient-to-br from-[#111111] to-[#0052FF]/5 rounded-2xl p-5 relative overflow-hidden">
-                            <h3 className="text-sm font-semibold text-[#0052FF] mb-2 relative z-10">Job Alerts</h3>
+                            <div className="premium-card relative mt-8 overflow-hidden p-5">
+                                <h3 className="relative z-10 mb-2 text-sm font-semibold text-blue-300">Job Alerts</h3>
                             <p className="text-xs text-slate-400 mb-4 leading-relaxed relative z-10">
                                 Get notified about new jobs matching these filters.
                             </p>
-                            <button className="w-full py-2.5 bg-[#0052FF] hover:bg-[#0040DD] text-white text-sm font-medium rounded-lg transition-colors relative z-10">
+                            <button className="btn-primary relative z-10 w-full py-2.5 text-sm font-medium">
                                 Create Alert
                             </button>
                         </div>
@@ -343,7 +339,7 @@ export default function Dashboard() {
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex-1 flex flex-col min-w-0 overflow-y-auto no-scrollbar p-6 lg:p-8 h-full">
+                <main className="no-scrollbar flex h-full min-w-0 flex-1 flex-col overflow-y-auto p-6 lg:p-8">
                     {/* Top Bar Area */}
                     <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-8">
                         <div>
@@ -357,7 +353,7 @@ export default function Dashboard() {
 
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 flex-1 max-w-2xl justify-end">
                             {/* Combined Search Bar */}
-                            <div className="flex flex-1 sm:max-w-[480px] bg-[#111111] rounded-full border border-white/10 focus-within:border-slate-500 focus-within:bg-[#161616] transition-all overflow-hidden h-12">
+                            <div className="flex h-12 flex-1 overflow-hidden rounded-full border border-slate-500/30 bg-slate-900/70 transition-all focus-within:border-blue-400 sm:max-w-[480px]">
                                 <div className="flex flex-1 items-center px-4 relative">
                                     <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
                                     <input
@@ -371,7 +367,7 @@ export default function Dashboard() {
                                 <button
                                     onClick={handleSearch}
                                     disabled={loading}
-                                    className="w-12 h-12 flex items-center justify-center bg-[#0052FF] hover:bg-[#0040DD] text-white flex-shrink-0 transition-colors"
+                                    className="btn-primary h-12 w-12 flex-shrink-0 rounded-none"
                                 >
                                     {loading ? (
                                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -401,18 +397,18 @@ export default function Dashboard() {
                     </div>
 
                     {status && (
-                        <div className="mb-6 p-4 rounded-xl text-sm font-medium animate-pulse bg-white/5 text-slate-300 border border-white/10">
+                        <div className="mb-6 animate-pulse rounded-xl border border-blue-400/30 bg-blue-500/10 p-4 text-sm font-medium text-blue-100">
                             {status}
                         </div>
                     )}
 
                     {(!results && !loading) && (
-                        <div className="flex flex-col items-center justify-center p-12 border border-dashed border-white/10 rounded-2xl bg-[#111111]/50 mb-8 min-h-[300px]">
+                        <div className="premium-card mb-8 flex min-h-[300px] flex-col items-center justify-center border-dashed p-12">
                             <h3 className="text-xl font-semibold text-white mb-2">Ready to explore?</h3>
                             <p className="text-slate-400 text-center max-w-sm text-sm">
                                 Use the search bar above to look for your ideal job opportunity in our system.
                             </p>
-                            <button onClick={handleSearch} className="mt-6 border border-white/20 px-6 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
+                            <button onClick={handleSearch} className="btn-secondary mt-6 px-6 py-2 text-sm">
                                 Search now
                             </button>
                         </div>
@@ -427,7 +423,7 @@ export default function Dashboard() {
                     {/* Job Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 xl:gap-6 pb-8">
                         {results && results.map((job, idx) => (
-                            <div key={idx} className="bg-[#111111] rounded-2xl p-6 border border-white/5 hover:border-white/20 transition-all group flex flex-col h-full hover:bg-[#141414]">
+                            <div key={idx} className="premium-card group flex h-full flex-col p-6 transition-all hover:border-slate-400/35 hover:bg-slate-900/90">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-12 h-12 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center mb-4 text-white font-bold text-xl overflow-hidden shrink-0">
                                         {job.entreprise?.charAt(0) || '?'}
@@ -445,7 +441,7 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="mb-4">
-                                    <h3 className="text-[17px] font-bold text-white group-hover:text-[#0052FF] transition-colors line-clamp-1 mb-1">
+                                    <h3 className="mb-1 line-clamp-1 text-[17px] font-bold text-white transition-colors group-hover:text-blue-300">
                                         {job.titre}
                                     </h3>
                                     <div className="text-slate-400 text-[15px] mb-3">
@@ -478,7 +474,7 @@ export default function Dashboard() {
                                     })}
                                 </div>
 
-                                <a href={job.url || job.lien || '#'} target="_blank" rel="noopener noreferrer" className="block text-center w-full bg-[#0052FF] hover:bg-[#0040DD] text-white font-semibold py-3.5 rounded-xl transition-colors mt-auto text-[15px]">
+                                <a href={job.url || job.lien || '#'} target="_blank" rel="noopener noreferrer" className="btn-primary mt-auto block w-full py-3.5 text-center text-[15px]">
                                     Apply Now
                                 </a>
                             </div>

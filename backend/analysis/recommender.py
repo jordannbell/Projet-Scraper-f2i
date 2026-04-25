@@ -1,7 +1,5 @@
 from config.database import SupabaseManager
 from analysis.nlp_engine import NLPEngine
-import json
-import os
 
 class RecommendationSystem:
     def __init__(self):
@@ -63,17 +61,6 @@ class RecommendationSystem:
         if jobs_data:
             print("[INFO] Utilisation des données locales (CSV/Mémoire) pour la recommandation.")
             jobs = jobs_data
-            # #region agent log
-            indeed_in = sum(1 for j in jobs if (str(j.get("id") or "").startswith("INDEED-")) or j.get("source") == "Indeed")
-            _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            _log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
-            try:
-                os.makedirs(os.path.dirname(_log_path), exist_ok=True)
-            except Exception:
-                pass
-            with open(_log_path, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId": "091a4a", "location": "recommender.py:get_recommendations:input", "message": "jobs_data received", "data": {"total": len(jobs), "indeed_count": indeed_in}, "hypothesisId": "H2", "timestamp": __import__("time").time() * 1000}) + "\n")
-            # #endregion
         elif self.db.client:
             print("[INFO] Utilisation de la base de données Supabase.")
             response = self.db.client.table("job_offers").select("*").execute()
@@ -141,15 +128,4 @@ class RecommendationSystem:
                 if id(r) not in out_ids:
                     out.append(r)
                     out_ids.add(id(r))
-        # #region agent log
-        indeed_out = sum(1 for r in out if r.get("source") == "Indeed")
-        _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        _log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
-        try:
-            os.makedirs(os.path.dirname(_log_path), exist_ok=True)
-        except Exception:
-            pass
-        with open(_log_path, "a", encoding="utf-8") as _f:
-            _f.write(json.dumps({"sessionId": "091a4a", "location": "recommender.py:get_recommendations:output", "message": "scored_jobs returned", "data": {"total": len(out), "indeed_count": indeed_out, "top_n": top_n}, "hypothesisId": "H3", "timestamp": __import__("time").time() * 1000}) + "\n")
-        # #endregion
         return out

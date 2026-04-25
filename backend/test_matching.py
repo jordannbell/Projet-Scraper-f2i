@@ -22,7 +22,7 @@ def test_ai_services():
 
     print("\n1. Test du Matching Score...")
     score = calculate_match_score(job_data, target_title, target_keywords)
-    print(f"Score calculé par Gemini : {score}/100")
+    print(f"Score calculé (LLM) : {score}/100")
 
     print("\n2. Test de la Lettre de Motivation...")
     letter = generate_cover_letter(job_data, target_title, target_keywords)
@@ -32,9 +32,9 @@ def test_ai_services():
     print("-" * 30)
 
     if score > 0 and len(letter) > 100:
-        print("\nSUCCES : Les services Gemini repondent correctement avec gemini-2.5-flash.")
+        print("\nSUCCES : Les services LLM repondent (Groq ou Gemini selon LLM_PROVIDER / cles .env).")
     else:
-        print("\nECHEC : Vérifiez votre GEMINI_API_KEY dans le fichier .env")
+        print("\nECHEC : Verifiez GROQ_API_KEY ou GEMINI_API_KEY et LLM_PROVIDER dans backend/.env")
 
 if __name__ == "__main__":
     test_ai_services()

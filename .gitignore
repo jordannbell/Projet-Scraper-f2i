@@ -10,7 +10,6 @@ ENV/
 
 # Data files
 *.csv
-*.json
 *.xlsx
 
 # IDE
@@ -32,6 +31,3 @@ chromedriver.log
 README.md
 .venv
 .env
-
-
-DEPLOYMENT.md

@@ -13,7 +13,7 @@ export default function InputGroup({ label, icon, error, type = "text", classNam
 
     return (
         <div className={`mb-3 ${className}`}>
-            <label className="block text-xs font-bold text-slate-300 mb-1">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-300">
                 {label}
             </label>
             <div className="relative rounded-xl shadow-sm group">
@@ -29,11 +29,11 @@ export default function InputGroup({ label, icon, error, type = "text", classNam
                     type={inputType}
                     suppressHydrationWarning
                     className={`
-            block w-full rounded-xl border-white/10 bg-white/5 text-sm
+            block w-full rounded-xl border border-slate-500/25 bg-slate-900/75 text-sm
             ${icon ? "pl-10" : "pl-4"} 
             ${isPassword ? "pr-10" : "pr-4"}
             py-2.5 text-white placeholder:text-slate-500
-            focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 focus:ring-offset-0 transition-all duration-200
+            focus:border-blue-400 focus:ring-blue-500/50 focus:ring-2 focus:ring-offset-0 transition-all duration-200
             ${error ? "border-red-300 focus:border-red-500 focus:ring-red-500" : ""}
           `}
                     {...props}

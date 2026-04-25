@@ -13,13 +13,13 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
     const { t } = useLanguage();
 
     return (
-        <div className="h-screen w-full flex bg-[#0a0a0a] font-sans text-white overflow-hidden">
+        <div className="app-shell h-screen w-full flex font-sans text-white overflow-hidden">
             {/* Left Column: Form */}
-            <div className="flex-1 flex flex-col justify-center py-4 px-4 sm:px-6 lg:flex-none lg:px-12 xl:px-20 w-full lg:w-[50%] xl:w-[50%] bg-[#0a0a0a] z-10 relative">
-                <div className="mx-auto w-full max-w-lg lg:w-[420px] pt-8 mt-12 xl:mt-24"> {/* mt-12 xl:mt-24 added to align the form horizontally with the text on the right column */}
+            <div className="z-10 relative flex w-full flex-1 flex-col justify-center bg-transparent px-4 py-4 sm:px-6 lg:w-[50%] lg:flex-none lg:px-12 xl:w-[50%] xl:px-20">
+                <div className="mx-auto mt-12 w-full max-w-lg rounded-2xl border border-slate-600/25 bg-slate-950/70 p-6 shadow-2xl lg:w-[460px] xl:mt-24">
 
                     {/* Content (Form) */}
-                    <div className="flex-1 overflow-y-auto no-scrollbar pb-4">
+                    <div className="flex-1 overflow-y-auto no-scrollbar pb-4" data-auth-mode={mode}>
                         {children}
                     </div>
 
@@ -31,7 +31,7 @@ export default function AuthLayout({ children, mode }: AuthLayoutProps) {
             </div>
 
             {/* Right Column: Illustration (Hidden on mobile) */}
-            <div className="hidden lg:flex flex-1 relative bg-[#0a0a0a] items-center justify-center py-6 pr-8 pl-0 overflow-hidden">
+            <div className="relative hidden flex-1 items-center justify-center overflow-hidden bg-transparent py-6 pl-0 pr-8 lg:flex">
                 <div className="relative z-10 w-full max-w-2xl flex flex-col items-center justify-center gap-6 h-full text-center py-4">
 
                     {/* Text ABOVE image to match mockup strictly */}

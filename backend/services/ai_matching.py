@@ -1,18 +1,15 @@
 import os
-from google import genai
 
-# Configure Gemini API using the new google-genai client
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+from services.llm_text import generate_plain_text, get_text_backend
+
 
 def calculate_match_score(job_data: dict, target_title: str, target_keywords: str) -> int:
     """
-    Analyzes the job offer against the user's targeted title and keywords
-    and returns a match score between 0 and 100.
+    Analyse l’offre par rapport au titre et mots-clés cibles ; score 0–100.
     """
-    job_title = job_data.get('titre', '')
-    job_desc = job_data.get('description', '')
-    company = job_data.get('entreprise_lieu', '')
+    job_title = job_data.get("titre", "")
+    job_desc = job_data.get("description", "")
+    company = job_data.get("entreprise_lieu", "")
 
     prompt = f"""
 Tu es un recruteur expert. Analyse cette offre d'emploi et note de 0 à 100 sa pertinence 
@@ -30,14 +27,16 @@ Offre d'emploi :
 Score de pertinence (0-100) :
 """
     try:
-        # Using the new google-genai syntax
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
+        if get_text_backend() == "none":
+            print("Aucune clé LLM (GROQ_API_KEY / GEMINI_API_KEY). Score=0.")
+            return 0
+
+        score_str = generate_plain_text(
+            prompt,
+            temperature=float(os.environ.get("MATCHING_LLM_TEMPERATURE", "0.15") or "0.15"),
+            max_tokens=64,
         )
-        # Parse the integer from response
-        score_str = response.text.strip().replace('%', '')
-        # Clean potential non-numeric text (sometimes LLM adds explanations)
+        score_str = score_str.strip().replace("%", "")
         score_val = "".join(filter(str.isdigit, score_str))
         score = int(score_val) if score_val else 0
         return max(0, min(100, score))
