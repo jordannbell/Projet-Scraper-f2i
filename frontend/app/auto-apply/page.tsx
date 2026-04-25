@@ -1,14 +1,29 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { UploadCloud, CheckCircle, Zap, Bot, History, ExternalLink, MapPin, Briefcase, FileText, Loader2, Sparkles } from "lucide-react";
+import { UploadCloud, CheckCircle, Zap, Bot, History, ExternalLink, MapPin, Briefcase, FileText, Loader2, Sparkles, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
+import { supabase } from "@/utils/supabase/client";
+import { apiFetch } from "@/utils/api";
+import StatusMessage from "@/components/ui/StatusMessage";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const CONSENT_VERSION = "2026-04-09";
+
+interface HistoryMatch {
+    id: string;
+    created_at: string;
+    status: string;
+    match_score: number;
+    apply_error?: string | null;
+    job_data?: {
+        titre?: string;
+        entreprise?: string;
+        entreprise_lieu?: string;
+        lien?: string;
+        url?: string;
+    };
+}
 
 export default function AutoApplyPage() {
     const router = useRouter();
@@ -19,16 +34,25 @@ export default function AutoApplyPage() {
     const [targetKeywords, setTargetKeywords] = useState("");
     const [cvSummary, setCvSummary] = useState("");
     const [autoApplyEnabled, setAutoApplyEnabled] = useState(false);
-    const [publicCvUrl, setPublicCvUrl] = useState<string | null>(null);
+    const [cvDownloadUrl, setCvDownloadUrl] = useState<string | null>(null);
     const [preferredTime, setPreferredTime] = useState("08:00");
     const [isRunningNow, setIsRunningNow] = useState(false);
+
+    const [applicantFirstName, setApplicantFirstName] = useState("");
+    const [applicantLastName, setApplicantLastName] = useState("");
+    const [applicantPhone, setApplicantPhone] = useState("");
+    const [applicantCity, setApplicantCity] = useState("");
+    const [applicantLinkedin, setApplicantLinkedin] = useState("");
+    const [hasConsent, setHasConsent] = useState(false);
+    const [hwLogin, setHwLogin] = useState("");
+    const [hwPassword, setHwPassword] = useState("");
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [userId, setUserId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [history, setHistory] = useState<any[]>([]);
+    const [history, setHistory] = useState<HistoryMatch[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -40,9 +64,11 @@ export default function AutoApplyPage() {
             const uid = session.user.id;
             setUserId(uid);
 
-            // Generate public URL for tracking
-            const { data: urlData } = supabase.storage.from("resumes").getPublicUrl(`${uid}/cv.pdf`);
-            setPublicCvUrl(urlData.publicUrl);
+            // Generate a short-lived signed URL for CV traceability
+            const { data: signedData } = await supabase.storage
+                .from("resumes")
+                .createSignedUrl(`${uid}/cv.pdf`, 60 * 60);
+            setCvDownloadUrl(signedData?.signedUrl || null);
 
             // Preferences
             const { data: prefs } = await supabase
@@ -57,6 +83,12 @@ export default function AutoApplyPage() {
                 setCvSummary(prefs.cv_summary || "");
                 setAutoApplyEnabled(prefs.auto_apply_enabled || false);
                 setPreferredTime(prefs.preferred_apply_time ? prefs.preferred_apply_time.substring(0, 5) : "08:00");
+                setApplicantFirstName(prefs.applicant_first_name || "");
+                setApplicantLastName(prefs.applicant_last_name || "");
+                setApplicantPhone(prefs.applicant_phone || "");
+                setApplicantCity(prefs.applicant_city || "");
+                setApplicantLinkedin(prefs.applicant_linkedin_url || "");
+                setHasConsent(!!prefs.auto_apply_consent_at);
             }
 
             // Application History
@@ -64,7 +96,7 @@ export default function AutoApplyPage() {
                 .from("job_matches")
                 .select("*")
                 .eq("user_id", uid)
-                .in("status", ["applied", "applied_successfully"])
+                .in("status", ["applied", "needs_manual", "failed", "queued", "applying"])
                 .order("created_at", { ascending: false });
 
             if (matches) {
@@ -88,12 +120,12 @@ export default function AutoApplyPage() {
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("user_id", userId);
 
         try {
-            const res = await fetch("http://localhost:8000/api/profile/upload-cv", {
+            const res = await apiFetch("/api/profile/upload-cv", {
                 method: "POST",
-                body: formData
+                body: formData,
+                requireAuth: true
             });
 
             const data = await res.json();
@@ -108,6 +140,11 @@ export default function AutoApplyPage() {
                 const { error } = await supabase.storage.from("resumes").upload(`${userId}/cv.pdf`, file, { upsert: true });
                 if (error && error.message !== "The resource already exists") {
                     console.error("Storage upload error:", error);
+                } else {
+                    await supabase.from("user_preferences").upsert({
+                        user_id: userId,
+                        cv_storage_path: `${userId}/cv.pdf`,
+                    });
                 }
             } else {
                 setMessage(`Erreur: ${data.detail || "Impossible d'analyser le CV"}`);
@@ -161,10 +198,10 @@ export default function AutoApplyPage() {
         setIsRunningNow(true);
         setMessage(t('auto_apply.running_now_msg'));
         try {
-            const res = await fetch("http://localhost:8000/api/auto-apply/run-now", {
+            const res = await apiFetch("/api/auto-apply/run-now", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({}),
+                requireAuth: true
             });
             if (res.ok) {
                 setMessage(t('auto_apply.run_success'));
@@ -179,8 +216,84 @@ export default function AutoApplyPage() {
         }
     };
 
+    const handleSaveApplicant = async () => {
+        if (!userId) return;
+        setLoading(true);
+        setMessage("");
+        try {
+            const res = await apiFetch("/api/profile/applicant", {
+                method: "PATCH",
+                body: JSON.stringify({
+                    applicant_first_name: applicantFirstName,
+                    applicant_last_name: applicantLastName,
+                    applicant_phone: applicantPhone || undefined,
+                    applicant_city: applicantCity || undefined,
+                    applicant_linkedin_url: applicantLinkedin || undefined,
+                }),
+                requireAuth: true,
+            });
+            const data = await res.json().catch(() => ({}));
+            setMessage(res.ok ? "Profil candidat enregistré." : (data.detail || "Erreur profil"));
+        } catch {
+            setMessage("Erreur réseau (profil).");
+        } finally {
+            setLoading(false);
+            setTimeout(() => setMessage(""), 4000);
+        }
+    };
+
+    const handleConsent = async () => {
+        if (!userId) return;
+        setLoading(true);
+        setMessage("");
+        try {
+            const res = await apiFetch("/api/profile/auto-apply-consent", {
+                method: "POST",
+                body: JSON.stringify({ version: CONSENT_VERSION }),
+                requireAuth: true,
+            });
+            if (res.ok) {
+                setHasConsent(true);
+                setMessage(t("auto_apply.consent_ok"));
+            } else {
+                const data = await res.json().catch(() => ({}));
+                setMessage(data.detail || "Erreur consentement");
+            }
+        } catch {
+            setMessage("Erreur réseau (consentement).");
+        } finally {
+            setLoading(false);
+            setTimeout(() => setMessage(""), 4000);
+        }
+    };
+
+    const handleHwCredential = async () => {
+        if (!userId || !hwLogin.trim() || !hwPassword) return;
+        setLoading(true);
+        setMessage("");
+        try {
+            const res = await apiFetch("/api/profile/platform-credential", {
+                method: "POST",
+                body: JSON.stringify({
+                    platform: "hellowork",
+                    login: hwLogin.trim(),
+                    password: hwPassword,
+                }),
+                requireAuth: true,
+            });
+            const data = await res.json().catch(() => ({}));
+            setMessage(res.ok ? "Identifiants HelloWork enregistrés (chiffrés)." : (data.detail || "Erreur identifiants"));
+            if (res.ok) setHwPassword("");
+        } catch {
+            setMessage("Erreur réseau (identifiants).");
+        } finally {
+            setLoading(false);
+            setTimeout(() => setMessage(""), 5000);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
+        <div className="app-shell relative min-h-screen overflow-hidden px-4 pb-12 pt-24 font-sans text-white sm:px-6 lg:px-8">
             {/* Animated Ambient Background (ReactBits Inspired) */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#0052FF]/20 rounded-full blur-[120px] opacity-60 mix-blend-screen animate-pulse"></div>
@@ -190,7 +303,7 @@ export default function AutoApplyPage() {
             <div className="max-w-7xl mx-auto space-y-12 relative z-10">
 
                 {/* Header Section (Glassmorphism & Glow) */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 p-10 rounded-[2rem] relative bg-white/[0.02] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl overflow-hidden group">
+                <div className="premium-card group relative flex flex-col justify-between gap-8 overflow-hidden rounded-[2rem] p-10 lg:flex-row lg:items-center">
                     <div className="absolute inset-0 bg-gradient-to-br from-[#0052FF]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 ease-in-out"></div>
 
                     <div className="relative z-10 flex-1">
@@ -203,9 +316,13 @@ export default function AutoApplyPage() {
                         <p className="text-slate-400 text-lg md:text-xl max-w-2xl leading-relaxed">
                             {t('auto_apply.desc')}
                         </p>
+                        <div className="mt-4 flex gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-100/90 text-sm leading-relaxed max-w-2xl">
+                            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+                            <span>{t('auto_apply.legal_disclaimer')}</span>
+                        </div>
                     </div>
 
-                    <div className="relative z-10 bg-black/40 border border-white/10 p-6 rounded-[1.5rem] flex items-center gap-6 shrink-0 shadow-2xl backdrop-blur-xl">
+                    <div className="premium-card relative z-10 flex shrink-0 items-center gap-6 rounded-[1.5rem] p-6">
                         <div className="flex flex-col">
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{t('auto_apply.bot_status')}</span>
                             <span className={`text-xl font-black flex items-center gap-3 ${autoApplyEnabled ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'text-slate-500'}`}>
@@ -229,8 +346,60 @@ export default function AutoApplyPage() {
 
                     {/* Settings Panel (Left - 5 cols) */}
                     <div className="lg:col-span-5 space-y-8">
+                        <div className="premium-card space-y-6 rounded-[2rem] p-8">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-[#0052FF]" /> {t("auto_apply.applicant_title")}
+                            </h2>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("auto_apply.applicant_first")}</label>
+                                    <input suppressHydrationWarning value={applicantFirstName} onChange={(e) => setApplicantFirstName(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("auto_apply.applicant_last")}</label>
+                                    <input suppressHydrationWarning value={applicantLastName} onChange={(e) => setApplicantLastName(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("auto_apply.applicant_phone")}</label>
+                                    <input suppressHydrationWarning value={applicantPhone} onChange={(e) => setApplicantPhone(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("auto_apply.applicant_city")}</label>
+                                    <input suppressHydrationWarning value={applicantCity} onChange={(e) => setApplicantCity(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("auto_apply.applicant_linkedin")}</label>
+                                <input suppressHydrationWarning value={applicantLinkedin} onChange={(e) => setApplicantLinkedin(e.target.value)} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                            </div>
+                            <button type="button" onClick={handleSaveApplicant} disabled={loading} className="btn-secondary w-full py-3 font-bold">
+                                {t("auto_apply.save_applicant")}
+                            </button>
+
+                            <div className="border-t border-white/10 pt-6 space-y-3">
+                                <h3 className="text-sm font-bold text-white">{t("auto_apply.consent_title")}</h3>
+                                <p className="text-sm text-slate-400">{t("auto_apply.consent_text")}</p>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <button type="button" onClick={handleConsent} disabled={loading} className="btn-primary px-5 py-3 font-bold">
+                                        {t("auto_apply.consent_btn")}
+                                    </button>
+                                    {hasConsent && <span className="text-xs text-emerald-400 font-semibold">OK</span>}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 pt-6 space-y-3">
+                                <h3 className="text-sm font-bold text-white">{t("auto_apply.platform_title")}</h3>
+                                <p className="text-xs text-slate-500">{t("auto_apply.platform_desc")}</p>
+                                <input suppressHydrationWarning value={hwLogin} onChange={(e) => setHwLogin(e.target.value)} placeholder={t("auto_apply.platform_login")} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" autoComplete="username" />
+                                <input suppressHydrationWarning type="password" value={hwPassword} onChange={(e) => setHwPassword(e.target.value)} placeholder={t("auto_apply.platform_password")} className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-sm text-white" autoComplete="current-password" />
+                                <button type="button" onClick={handleHwCredential} disabled={loading} className="btn-secondary w-full py-3 font-bold">
+                                    {t("auto_apply.platform_save")}
+                                </button>
+                            </div>
+                        </div>
+
                         {/* CV Upload Card */}
-                        <div className="bg-gradient-to-b from-[#111111] to-[#0a0a0a] border border-white/5 hover:border-white/10 transition-all rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+                        <div className="premium-card group relative overflow-hidden rounded-[2rem] p-8 transition-all hover:border-slate-400/35">
                             <div className="absolute inset-0 bg-[#0052FF]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                             <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 relative z-10">
@@ -253,12 +422,12 @@ export default function AutoApplyPage() {
                             </div>
 
                             {message && (
-                                <div className={`relative z-10 p-4 rounded-xl text-sm font-medium mb-8 backdrop-blur-md border ${message.includes('Erreur') ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                <StatusMessage type={message.includes("Erreur") ? "error" : "success"} className="relative z-10 mb-8">
                                     <div className="flex items-center gap-3">
-                                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                                         {message}
                                     </div>
-                                </div>
+                                </StatusMessage>
                             )}
 
                             {/* CV Summary AI Box (ReactBits style) */}
@@ -277,6 +446,7 @@ export default function AutoApplyPage() {
                                 <div className="group/input">
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 group-focus-within/input:text-[#0052FF] transition-colors">{t('auto_apply.target_job')}</label>
                                     <input
+                                        suppressHydrationWarning
                                         type="text"
                                         value={targetTitle}
                                         onChange={(e) => setTargetTitle(e.target.value)}
@@ -288,6 +458,7 @@ export default function AutoApplyPage() {
                                 <div className="group/input">
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 group-focus-within/input:text-[#0052FF] transition-colors">{t('auto_apply.target_keywords')}</label>
                                     <textarea
+                                        suppressHydrationWarning
                                         value={targetKeywords}
                                         onChange={(e) => setTargetKeywords(e.target.value)}
                                         rows={4}
@@ -299,6 +470,7 @@ export default function AutoApplyPage() {
                                 <div className="group/input">
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 group-focus-within/input:text-[#0052FF] transition-colors">{t('auto_apply.schedule_title')}</label>
                                     <input
+                                        suppressHydrationWarning
                                         type="time"
                                         value={preferredTime}
                                         onChange={(e) => setPreferredTime(e.target.value)}
@@ -309,7 +481,7 @@ export default function AutoApplyPage() {
                                 <button
                                     onClick={handleSavePreferences}
                                     disabled={loading}
-                                    className="w-full py-4 relative overflow-hidden group bg-slate-800/80 hover:bg-slate-700 border border-slate-600 rounded-xl font-bold transition-all flex items-center justify-center gap-3 text-white mt-4 shadow-lg hover:shadow-xl hover:border-slate-400"
+                                    className="btn-secondary group relative mt-4 flex w-full items-center justify-center gap-3 overflow-hidden py-4 font-bold shadow-lg transition-all hover:border-slate-400 hover:shadow-xl"
                                 >
                                     <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-transparent via-slate-400 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></span>
                                     <CheckCircle className="w-5 h-5 text-emerald-400" />
@@ -319,7 +491,7 @@ export default function AutoApplyPage() {
                                 <button
                                     onClick={handleRunNow}
                                     disabled={isRunningNow || loading}
-                                    className="w-full py-4 mt-4 relative overflow-hidden group bg-gradient-to-r from-[#0052FF] to-violet-600 hover:opacity-90 rounded-xl font-bold transition-all flex items-center justify-center gap-3 text-white shadow-[0_0_20px_rgba(0,82,255,0.4)]"
+                                    className="btn-primary group relative mt-4 flex w-full items-center justify-center gap-3 overflow-hidden py-4 font-bold shadow-[0_0_20px_rgba(0,82,255,0.4)]"
                                 >
                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-spring"></div>
                                     {isRunningNow ? <Loader2 className="w-5 h-5 animate-spin relative z-10" /> : <Bot className="w-5 h-5 relative z-10" />}
@@ -331,7 +503,7 @@ export default function AutoApplyPage() {
 
                     {/* Application Log Panel (Right - 7 cols) */}
                     <div className="lg:col-span-7">
-                        <div className="bg-gradient-to-b from-[#111111] to-[#0a0a0a] border border-white/5 rounded-[2rem] p-8 shadow-2xl h-full flex flex-col relative overflow-hidden">
+                        <div className="premium-card relative flex h-full flex-col overflow-hidden rounded-[2rem] p-8">
                             <div className="absolute top-0 right-0 w-[400px] h-full bg-gradient-to-l from-[#0052FF]/5 to-transparent pointer-events-none"></div>
 
                             <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 relative z-10 border-b border-white/10 pb-6">
@@ -358,14 +530,31 @@ export default function AutoApplyPage() {
                                         const dateStr = new Date(match.created_at).toLocaleDateString(t('auto_apply.sent') === 'Sent' ? 'en-US' : 'fr-FR', {
                                             day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                                         });
+                                        const st = match.status as string;
+                                        let statusLabel = t("auto_apply.status_applied");
+                                        let StatusIcon = CheckCircle;
+                                        let statusClass = "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
+                                        if (st === "failed") {
+                                            statusLabel = t("auto_apply.status_failed");
+                                            StatusIcon = XCircle;
+                                            statusClass = "bg-red-500/15 text-red-300 border-red-500/30";
+                                        } else if (st === "needs_manual") {
+                                            statusLabel = t("auto_apply.status_manual");
+                                            StatusIcon = AlertTriangle;
+                                            statusClass = "bg-amber-500/15 text-amber-200 border-amber-500/30";
+                                        } else if (st === "queued" || st === "applying") {
+                                            statusLabel = st === "queued" ? t("auto_apply.status_queued") : t("auto_apply.status_applying");
+                                            StatusIcon = Clock;
+                                            statusClass = "bg-slate-500/15 text-slate-300 border-slate-500/30";
+                                        }
 
                                         return (
                                             <div key={match.id} className="group bg-white/[0.04] border border-white/10 hover:border-[#0052FF]/40 hover:bg-[#0052FF]/[0.04] transition-all duration-300 rounded-[1.5rem] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-md hover:shadow-[0_8px_30px_rgba(0,82,255,0.12)]">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-4 mb-3">
+                                                    <div className="flex items-center gap-4 mb-3 flex-wrap">
                                                         <h3 className="font-bold text-white text-lg tracking-tight group-hover:text-indigo-300 transition-colors">{job.titre || 'Poste non renseigné'}</h3>
-                                                        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_15px_rgba(52,211,153,0.15)]">
-                                                            <CheckCircle className="w-4 h-4" /> {t('auto_apply.sent')}
+                                                        <span className={`text-xs font-bold px-3 py-1.5 rounded-full border flex items-center gap-1.5 ${statusClass}`}>
+                                                            <StatusIcon className="w-4 h-4" /> {statusLabel}
                                                         </span>
                                                     </div>
 
@@ -375,13 +564,16 @@ export default function AutoApplyPage() {
                                                     </div>
 
                                                     {/* Tracabilité du CV */}
-                                                    {publicCvUrl && (
+                                                    {cvDownloadUrl && st === "applied" && (
                                                         <div className="mt-4 flex items-center text-xs font-semibold text-slate-500">
                                                             <div className="flex items-center gap-1.5 hover:text-slate-300 transition-colors">
                                                                 <FileText className="w-4 h-4 text-[#0052FF]/70" />
-                                                                Transmis avec <a href={publicCvUrl} target="_blank" className="underline decoration-slate-700 underline-offset-4 hover:text-[#0052FF] transition-colors cursor-pointer">votre CV enregistré</a>
+                                                                CV utilisé : <a href={cvDownloadUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-slate-700 underline-offset-4 hover:text-[#0052FF] transition-colors cursor-pointer">fichier enregistré</a> — vérifiez sur le site recruteur.
                                                             </div>
                                                         </div>
+                                                    )}
+                                                    {match.apply_error && (st === "failed" || st === "needs_manual") && (
+                                                        <p className="mt-2 text-xs text-slate-500 max-w-xl">{match.apply_error}</p>
                                                     )}
                                                 </div>
 

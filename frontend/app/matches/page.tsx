@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-// Ensure you have these env variables or replace them with your supabase client util
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "@/utils/supabase/client";
+import { apiFetch } from "@/utils/api";
+import StatusMessage from "@/components/ui/StatusMessage";
 
 interface Match {
     id: string;
     job_offer_id: string;
-    job_data: any;
+    job_data: {
+        titre?: string;
+        entreprise_lieu?: string;
+        lien?: string;
+    };
     match_score: number;
     generated_cover_letter: string;
     status: string;
@@ -28,7 +29,7 @@ export default function MatchesDashboard() {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setUserId(user.id);
-                fetchMatches(user.id);
+                fetchMatches();
             } else {
                 setLoading(false);
             }
@@ -36,9 +37,9 @@ export default function MatchesDashboard() {
         fetchUserAndMatches();
     }, []);
 
-    const fetchMatches = async (uid: string) => {
+    const fetchMatches = async () => {
         try {
-            const res = await fetch(`http://localhost:8000/api/matches/?user_id=${uid}`);
+            const res = await apiFetch("/api/matches/", { requireAuth: true });
             if (!res.ok) throw new Error("Failed to fetch matches");
             const data = await res.json();
             setMatches(data.matches || []);
@@ -53,15 +54,16 @@ export default function MatchesDashboard() {
     const handleApprove = async (matchId: string) => {
         if (!userId) return;
         try {
-            const res = await fetch(`http://localhost:8000/api/matches/${matchId}/approve?user_id=${userId}`, {
-                method: "POST"
+            const res = await apiFetch(`/api/matches/${matchId}/approve`, {
+                method: "POST",
+                requireAuth: true
             });
             const data = await res.json();
             if (!res.ok) {
                 alert(`Erreur: ${data.detail || "Quota atteint ou erreur système"}`);
                 return;
             }
-            alert("✅ Candidature approuvée et lancée en arrière-plan !");
+            alert("✅ Demande en file : traitement en arrière-plan. Vérifiez le journal Auto-apply pour le résultat réel.");
             setMatches(prev => prev.filter(m => m.id !== matchId));
         } catch (err) {
             console.error(err);
@@ -77,70 +79,70 @@ export default function MatchesDashboard() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Chargement de vos matchs IA...</div>;
-    if (!userId) return <div className="p-8 text-center text-red-500">Veuillez vous connecter pour voir vos matchs.</div>;
+    if (loading) return <div className="app-shell p-8 pt-28 text-center text-slate-300">Chargement de vos matchs IA...</div>;
+    if (!userId) return <div className="app-shell p-8 pt-28 text-center text-red-300">Veuillez vous connecter pour voir vos matchs.</div>;
 
     return (
-        <div className="container mx-auto p-4 md:p-8">
+        <div className="app-shell min-h-screen p-4 pt-24 md:p-8 md:pt-24">
+            <div className="mx-auto max-w-6xl">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                    Vos Matchs d'Emploi
+                <h1 className="premium-title bg-gradient-to-r from-blue-300 to-indigo-200 bg-clip-text text-transparent">
+                    Vos Matchs d&apos;Emploi
                 </h1>
-                <p className="text-gray-600 mt-2">
-                    L'IA a évalué ces offres par rapport à votre profil. Approuvez-les pour déclencher la candidature automatique.
-                    <span className="ml-2 inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">Auto-Apply Actif</span>
+                <p className="premium-subtitle mt-2">
+                    L&apos;IA a évalué ces offres par rapport à votre profil. Après approbation, la demande est mise en file : le robot tente une soumission réelle lorsque le site le permet ; sinon le statut passera a « manuel requis » ou « echec ».
                 </p>
-                <div className="mt-2 text-sm text-gray-500">
-                    Quota gratuit: 2 candidatures par jour. Pour débloquer l'illimité, passez à l'abonnement Premium.
+                <div className="mt-2 text-sm text-slate-400">
+                    Quota gratuit : 2 candidatures réussies par jour (comptées après succès automatique). Complétez prénom, nom, consentement et CV sur la page Auto-apply avant d&apos;approuver.
                 </div>
             </div>
 
-            {error && <div className="p-4 bg-red-50 text-red-600 rounded-lg mb-6">{error}</div>}
+            {error && <StatusMessage type="error" className="mb-6">{error}</StatusMessage>}
 
             {matches.length === 0 ? (
-                <div className="text-center p-12 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-gray-500 text-lg">Aucun nouveau match pour le moment.</p>
-                    <p className="text-gray-400 mt-2">Assurez-vous que vos critères cibles sont bien renseignés dans votre profil.</p>
+                <div className="premium-card p-12 text-center">
+                    <p className="text-lg text-slate-300">Aucun nouveau match pour le moment.</p>
+                    <p className="mt-2 text-slate-400">Assurez-vous que vos critères cibles sont bien renseignés dans votre profil.</p>
                 </div>
             ) : (
                 <div className="grid gap-6">
                     {matches.map((match) => (
-                        <div key={match.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 transition-all hover:shadow-md">
+                        <div key={match.id} className="premium-card flex flex-col gap-6 p-6 transition-all md:flex-row">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <h2 className="text-xl font-semibold text-gray-900">{match.job_data?.titre || 'Offre inconnue'}</h2>
-                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full">
+                                    <h2 className="text-xl font-semibold text-slate-100">{match.job_data?.titre || 'Offre inconnue'}</h2>
+                                    <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-bold text-emerald-300">
                                         {match.match_score}% Match
                                     </span>
                                 </div>
-                                <p className="text-gray-600 font-medium mb-4">{match.job_data?.entreprise_lieu}</p>
+                                <p className="mb-4 font-medium text-slate-300">{match.job_data?.entreprise_lieu}</p>
 
-                                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                                    <h3 className="text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">Lettre de motivation générée</h3>
+                                <div className="mb-4 rounded-lg border border-slate-500/25 bg-slate-900/60 p-4">
+                                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-300">Lettre de motivation générée</h3>
                                     <textarea
-                                        className="w-full h-32 p-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                        className="h-32 w-full resize-none rounded-lg border border-slate-500/25 bg-slate-950 p-3 text-sm text-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/40"
                                         defaultValue={match.generated_cover_letter}
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 min-w-[200px] justify-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                            <div className="flex min-w-[200px] flex-col justify-center gap-3 border-t border-slate-600/20 pt-4 md:border-l md:border-t-0 md:pl-6 md:pt-0">
                                 <a
                                     href={match.job_data?.lien}
                                     target="_blank"
-                                    className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-center rounded-lg font-medium transition-colors"
+                                    className="btn-secondary w-full px-4 py-2 text-center"
                                 >
-                                    Consulter l'annonce
+                                    Consulter l&apos;annonce
                                 </a>
                                 <button
                                     onClick={() => handleApprove(match.id)}
-                                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center justify-center gap-2"
+                                    className="btn-primary flex w-full items-center justify-center gap-2 px-4 py-2"
                                 >
                                     Approuver & Postuler
                                 </button>
                                 <button
                                     onClick={() => handleReject(match.id)}
-                                    className="w-full py-2 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors"
+                                    className="w-full rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 font-medium text-red-300 transition-colors hover:bg-red-500/20"
                                 >
                                     Ignorer
                                 </button>
@@ -149,6 +151,7 @@ export default function MatchesDashboard() {
                     ))}
                 </div>
             )}
+        </div>
         </div>
     );
 }

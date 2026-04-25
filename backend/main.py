@@ -21,17 +21,29 @@ from scrapers.hellowork_scraper import scrape_hellowork
 from scrapers.adzuna_scraper import scrape_adzuna
 from scrapers.indeed_scraper import scrape_indeed
 from analysis.recommender import RecommendationSystem
+from routers import profile, matches, auto_apply, legal
 
 app = FastAPI(title="Seekra API", description="API for Job Search & Recommendation")
 
 # Enable CORS for Next.js frontend
+_default_cors = "http://localhost:3000,http://127.0.0.1:3000"
+_cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", _default_cors).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(profile.router, prefix="/api/profile", tags=["Profile"])
+app.include_router(matches.router, prefix="/api/matches", tags=["Matches"])
+app.include_router(auto_apply.router, prefix="/api/auto-apply", tags=["AutoApply"])
+app.include_router(legal.router, prefix="/api/legal", tags=["Legal"])
 
 # Data Models
 class JobSearchRequest(BaseModel):
@@ -88,6 +100,19 @@ def _filter_jobs(jobs_data: list, contract_types: Optional[List[str]], date_post
     """Filter jobs by contract type and date posted. Keeps job if unparseable date."""
     if not contract_types and not date_posted:
         return jobs_data
+    import unicodedata
+
+    def _norm(v: str) -> str:
+        return (
+            unicodedata.normalize("NFKD", v)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+            .lower()
+            .replace("-", " ")
+            .replace("_", " ")
+            .strip()
+        )
+
     max_days = None
     if date_posted:
         low = date_posted.strip().lower()
@@ -102,9 +127,9 @@ def _filter_jobs(jobs_data: list, contract_types: Optional[List[str]], date_post
     out = []
     for j in jobs_data:
         if contract_types:
-            tc = (j.get("type_contrat") or "").strip().lower().replace("-", " ").replace("_", " ")
+            tc = _norm(j.get("type_contrat") or "")
             # Si type_contrat est vide, on garde l'offre (on ne peut pas exclure sans info)
-            if tc and not any(ct.lower().replace("-", " ") in tc for ct in contract_types):
+            if tc and not any(_norm(ct) in tc for ct in contract_types):
                 continue
         if max_days is not None:
             days = _parse_days_ago(j.get("date_publication") or "")
@@ -121,43 +146,27 @@ def _filter_jobs(jobs_data: list, contract_types: Optional[List[str]], date_post
 def read_root():
     return {"message": "Seekra API is running"}
 
-def _debug_log(data: dict):
-    # #region agent log
-    import json
-    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"sessionId": "091a4a", **data, "timestamp": __import__("time").time() * 1000}) + "\n")
-    # #endregion
-
 @app.post("/api/jobs/search")
 def search_jobs(request: JobSearchRequest):
     print(f"Searching for {request.keyword} ({request.max_pages} pages)")
     try:
         # Scrape France Travail
         jobs_ft = scrape_france_travail(search_keyword=request.keyword, max_pages=request.max_pages)
-        _debug_log({"location": "main.py:search_jobs:after_ft", "message": "jobs_ft count", "data": {"count": len(jobs_ft)}, "hypothesisId": "H1"})
 
         # Scrape HelloWork
         jobs_hw = scrape_hellowork(search_keyword=request.keyword, max_pages=request.max_pages)
-        _debug_log({"location": "main.py:search_jobs:after_hw", "message": "jobs_hw count", "data": {"count": len(jobs_hw)}, "hypothesisId": "H1"})
 
         # Adzuna (désactivé par défaut ; mettre USE_ADZUNA=1 pour activer, clés : ADZUNA_APP_ID, ADZUNA_APP_KEY)
         jobs_adzuna = scrape_adzuna(search_keyword=request.keyword, max_pages=request.max_pages) if os.environ.get("USE_ADZUNA", "0").strip().lower() in ("1", "true", "yes") else []
 
         # Indeed (python-jobspy ; USE_INDEED=0 pour désactiver)
         jobs_indeed = scrape_indeed(search_keyword=request.keyword, max_pages=request.max_pages)
-        _debug_log({"location": "main.py:search_jobs:after_indeed", "message": "jobs_indeed count", "data": {"count": len(jobs_indeed), "sample_id": jobs_indeed[0].get("id") if jobs_indeed else None}, "hypothesisId": "H1"})
 
         # Combine results
         jobs = jobs_ft + jobs_hw + jobs_adzuna + jobs_indeed
-        indeed_in_merged = sum(1 for j in jobs if (j.get("id") or "").startswith("INDEED-") or j.get("source") == "Indeed")
-        _debug_log({"location": "main.py:search_jobs:merged", "message": "merged jobs", "data": {"total": len(jobs), "indeed_count": indeed_in_merged}, "hypothesisId": "H1"})
 
         return {"count": len(jobs), "jobs": jobs}
     except Exception as e:
-        _debug_log({"location": "main.py:search_jobs:exception", "message": "search exception", "data": {"error": str(e)}, "hypothesisId": "H5"})
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/recommend")
@@ -166,21 +175,8 @@ def recommend_jobs(request: RecommendationRequest):
     try:
         jobs_data = [job.dict() for job in request.jobs]
         jobs_data = _filter_jobs(jobs_data, request.contract_types, request.date_posted)
-        indeed_in_request = sum(1 for j in jobs_data if (j.get("id") or "").startswith("INDEED-") or j.get("source") == "Indeed")
-        # #region agent log
-        import json
-        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        log_path = os.path.join(_root, ".cursor", "debug-091a4a.log")
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "091a4a", "location": "main.py:recommend:input", "message": "jobs sent to recommender", "data": {"total": len(jobs_data), "indeed_count": indeed_in_request}, "hypothesisId": "H2", "timestamp": __import__("time").time() * 1000}) + "\n")
-        # #endregion
         rec_sys = RecommendationSystem()
         recommendations = rec_sys.get_recommendations(request.skills, top_n=100, jobs_data=jobs_data)
-        indeed_in_rec = sum(1 for r in recommendations if r.get("source") == "Indeed")
-        # #region agent log
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "091a4a", "location": "main.py:recommend:output", "message": "recommendations returned", "data": {"total": len(recommendations), "indeed_count": indeed_in_rec}, "hypothesisId": "H3", "timestamp": __import__("time").time() * 1000}) + "\n")
-        # #endregion
         return recommendations
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

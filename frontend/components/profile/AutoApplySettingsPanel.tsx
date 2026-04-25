@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import { UploadCloud, CheckCircle, Zap } from "lucide-react";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "@/utils/supabase/client";
+import { apiFetch } from "@/utils/api";
 
 export default function AutoApplySettingsPanel() {
     const [targetTitle, setTargetTitle] = useState("");
@@ -54,12 +52,12 @@ export default function AutoApplySettingsPanel() {
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("user_id", userId);
 
         try {
-            const res = await fetch("http://localhost:8000/api/profile/upload-cv", {
+            const res = await apiFetch("/api/profile/upload-cv", {
                 method: "POST",
-                body: formData
+                body: formData,
+                requireAuth: true
             });
 
             const data = await res.json();
@@ -73,6 +71,11 @@ export default function AutoApplySettingsPanel() {
                 const { error } = await supabase.storage.from("resumes").upload(`${userId}/cv.pdf`, file, { upsert: true });
                 if (error && error.message !== "The resource already exists") {
                     console.error("Storage upload error:", error);
+                } else {
+                    await supabase.from("user_preferences").upsert({
+                        user_id: userId,
+                        cv_storage_path: `${userId}/cv.pdf`,
+                    });
                 }
             } else {
                 setMessage(`Erreur: ${data.detail || "Impossible d'analyser le CV"}`);
@@ -127,7 +130,12 @@ export default function AutoApplySettingsPanel() {
                     <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
                         <Zap className="text-yellow-400" /> Auto-Apply Bot
                     </h2>
-                    <p className="text-slate-400 mt-1">Laissez l'IA postuler à votre place pendant que vous dormez.</p>
+                    <p className="text-slate-400 mt-1">Laissez l&apos;IA tenter des candidatures lorsque le site le permet.</p>
+                    <p className="text-slate-500 text-sm mt-2">
+                        Renseignez prénom, nom, consentement et options sur la page{" "}
+                        <Link href="/auto-apply" className="text-blue-400 hover:underline">Auto-apply</Link>
+                        {" "}avant d&apos;activer le pilote.
+                    </p>
                 </div>
 
                 <div className="flex items-center gap-3">

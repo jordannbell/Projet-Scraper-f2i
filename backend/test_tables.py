@@ -1,8 +1,11 @@
 import os
 from supabase import create_client, Client
 
-url = os.environ.get("SUPABASE_URL", "https://aalgfsxyxwfedxcronui.supabase.co")
-key = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhbGdmc3h5eHdmZWR4Y3JvbnVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTI3NDEsImV4cCI6MjA4NDAyODc0MX0.qI2hwCB8tnnEeSsTNSLLZP6RVt8BSN3zSndBwqb9SCE")
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
+
+if not url or not key:
+    raise RuntimeError("Set SUPABASE_URL and SUPABASE_KEY in environment before running this script.")
 
 supabase: Client = create_client(url, key)
 

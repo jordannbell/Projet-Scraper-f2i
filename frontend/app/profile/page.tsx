@@ -26,15 +26,15 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8 font-sans">
+        <div className="app-shell min-h-screen px-4 pb-12 pt-24 font-sans text-white sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8">
                 {/* Sidebar */}
-                <div className="w-full md:w-64 flex-shrink-0">
+                <div className="w-full flex-shrink-0 md:w-64">
                     <ProfileSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex-1">
+                <div className="premium-card flex-1 p-4 sm:p-6">
                     {renderPanel()}
                 </div>
             </div>

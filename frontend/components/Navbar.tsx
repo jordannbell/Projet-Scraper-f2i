@@ -38,12 +38,12 @@ export default function Navbar() {
     }, []);
 
     return (
-        <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <div className="fixed left-0 right-0 top-4 z-50 flex justify-center px-4 pointer-events-none">
             {/* pointer-events-auto for the navbar itself so it remains clickable */}
-            <nav className="pointer-events-auto w-full max-w-2xl bg-black/30 backdrop-blur-lg border border-white/10 rounded-full shadow-2xl">
+            <nav className="pointer-events-auto w-full max-w-4xl rounded-2xl border border-slate-500/25 bg-slate-950/75 shadow-2xl backdrop-blur-xl">
                 <div className="px-6 h-14 flex items-center justify-between">
                     {/* Gauche: Logo */}
-                    <Link href="/" className="text-xl font-bold text-white tracking-wide hover:text-indigo-300 transition-colors">
+                    <Link href="/" className="text-xl font-bold text-white tracking-wide transition-colors hover:text-blue-300">
                         Seekra
                     </Link>
 
@@ -59,7 +59,7 @@ export default function Navbar() {
                             </Link>
                         ))}
                         {isLoggedIn && (
-                            <Link href="/auto-apply" className="text-amber-400 hover:text-amber-300 text-sm font-bold flex items-center transition-colors drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]">
+                            <Link href="/auto-apply" className="text-blue-300 hover:text-blue-200 text-sm font-bold flex items-center transition-colors">
                                 Auto-Apply 🤖
                             </Link>
                         )}
@@ -69,7 +69,7 @@ export default function Navbar() {
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={toggleLanguage}
-                            className="text-slate-300 hover:text-white transition-colors p-1.5 rounded-md border border-white/20 hover:bg-white/10 flex items-center justify-center font-bold text-xs"
+                            className="flex items-center justify-center rounded-lg border border-slate-500/30 p-1.5 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800/60 hover:text-white"
                             aria-label="Changer de langue"
                         >
                             <Globe className="w-4 h-4 mr-1" />
@@ -77,7 +77,7 @@ export default function Navbar() {
                         </button>
                         <Link
                             href={isLoggedIn ? "/profile" : "/login"}
-                            className="text-slate-300 hover:text-white transition-colors p-1.5 rounded-md border border-white/20 hover:bg-white/10"
+                            className="rounded-lg border border-slate-500/30 p-1.5 text-slate-300 transition-colors hover:bg-slate-800/60 hover:text-white"
                             aria-label={isLoggedIn ? "Profil Utilisateur" : "Se Connecter"}
                         >
                             <User className="w-5 h-5" />

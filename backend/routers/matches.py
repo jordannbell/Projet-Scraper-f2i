@@ -1,73 +1,145 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import Optional
-from datetime import datetime, date
+from datetime import date
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+
+from services.apply_processor import run_process_apply_queue_sync
+from services.apply_queue import enqueue_apply_job
+from services.auth import get_current_user
 from services.supabase_client import get_supabase
-# from services.auto_apply_bot import apply_to_job_bot
 
 router = APIRouter()
-supabase = get_supabase()
+supabase = None
+
+FREE_DAILY_LIMIT = 2
+
 
 @router.get("/")
-def get_user_matches(user_id: str):
+def get_user_matches(current_user: dict = Depends(get_current_user)):
     """
-    Fetch pending matches for a specific user.
+    Fetch pending matches for the authenticated user.
     """
+    user_id = current_user["id"]
     try:
-        res = supabase.table("job_matches").select("*").eq("user_id", user_id).eq("status", "pending_validation").order("created_at", desc=True).execute()
+        global supabase
+        if supabase is None:
+            supabase = get_supabase()
+        res = (
+            supabase.table("job_matches")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("status", "pending_validation")
+            .order("created_at", desc=True)
+            .execute()
+        )
         return {"matches": res.data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
 
 @router.post("/{match_id}/approve")
-def approve_match(match_id: str, user_id: str, background_tasks: BackgroundTasks):
+def approve_match(
+    match_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
     """
-    Approve a match. Checks limits, increments counter, and triggers the Playwright auto-apply bot.
+    Valide un match, vérifie quota (candidatures réussies du jour), consentement et profil,
+    passe le match en queued et enfile un traitement Playwright (succès = applied uniquement après bot).
     """
-    # 1. Verification
-    res = supabase.table("job_matches").select("*").eq("id", match_id).eq("user_id", user_id).execute()
+    user_id = current_user["id"]
+    global supabase
+    if supabase is None:
+        supabase = get_supabase()
+
+    res = (
+        supabase.table("job_matches")
+        .select("*")
+        .eq("id", match_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
     if not res.data:
         raise HTTPException(status_code=404, detail="Match not found")
-        
+
     match_data = res.data[0]
-    if match_data['status'] != 'pending_validation':
+    if match_data["status"] != "pending_validation":
         raise HTTPException(status_code=400, detail="Match already processed")
 
-    # 2. Check Daily Limits (Free plan = 2/day)
-    pref_res = supabase.table("user_preferences").select("*").eq("user_id", user_id).execute()
-    
-    # Setup preferences if doesn't exist
+    pref_res = (
+        supabase.table("user_preferences")
+        .select("*")
+        .eq("user_id", user_id)
+        .execute()
+    )
     if not pref_res.data:
-        supabase.table("user_preferences").insert({
-            "user_id": user_id, 
-            "applications_sent_today": 0,
-            "last_application_date": str(date.today())
-        }).execute()
-        pref_data = {"applications_sent_today": 0, "last_application_date": str(date.today())}
-    else:
-        pref_data = pref_res.data[0]
+        raise HTTPException(
+            status_code=400,
+            detail="Configurez vos préférences et votre profil candidat avant de postuler.",
+        )
+    pref_data = pref_res.data[0]
+
+    if not pref_data.get("auto_apply_consent_at"):
+        raise HTTPException(
+            status_code=400,
+            detail="Vous devez accepter les conditions d’auto-candidature dans votre profil.",
+        )
+    if not (pref_data.get("applicant_first_name") or "").strip() or not (
+        pref_data.get("applicant_last_name") or ""
+    ).strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Renseignez prénom et nom (profil candidat) avant de lancer une candidature.",
+        )
+
+    cv_path = (pref_data.get("cv_storage_path") or "").strip() or f"{user_id}/cv.pdf"
+    if not cv_path:
+        raise HTTPException(status_code=400, detail="CV manquant : importez un PDF.")
 
     today_str = str(date.today())
-    
-    # Reset limit if it's a new day
-    if pref_data.get("last_application_date") != today_str:
-        pref_data["applications_sent_today"] = 0
-        pref_data["last_application_date"] = today_str
+    applications_sent_today = pref_data.get("applications_sent_today", 0)
+    last_application_date = pref_data.get("last_application_date")
+    if last_application_date != today_str:
+        applications_sent_today = 0
 
-    if pref_data.get("applications_sent_today", 0) >= 2:
-        # TODO: Implémenter vérification du plan Stripe Premium ici
-        raise HTTPException(status_code=403, detail="Daily limit of 2 applications reached for free plan.")
+    if applications_sent_today >= FREE_DAILY_LIMIT:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Daily limit of {FREE_DAILY_LIMIT} successful applications reached for free plan",
+        )
 
-    # 3. Validé -> Mise à jour base de données
-    new_count = pref_data.get("applications_sent_today", 0) + 1
-    
-    supabase.table("user_preferences").update({
-        "applications_sent_today": new_count,
-        "last_application_date": today_str
-    }).eq("user_id", user_id).execute()
+    qres = (
+        supabase.table("job_matches")
+        .update({"status": "queued"})
+        .eq("id", match_id)
+        .eq("status", "pending_validation")
+        .select("id")
+        .execute()
+    )
+    if not (qres.data or []):
+        raise HTTPException(status_code=409, detail="Match status changed, retry")
 
-    supabase.table("job_matches").update({"status": "applied"}).eq("id", match_id).execute()
+    try:
+        queue_id = enqueue_apply_job(match_id, user_id)
+    except Exception as exc:
+        supabase.table("job_matches").update({"status": "pending_validation"}).eq(
+            "id", match_id
+        ).eq("status", "queued").execute()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Impossible d’enfiler la candidature (SUPABASE_SERVICE_ROLE_KEY / apply_queue): {exc}",
+        ) from exc
 
-    # 4. Lancer le Bot Playwright en tâche de fond
-    # background_tasks.add_task(apply_to_job_bot, match_data, user_id)
+    if not queue_id:
+        supabase.table("job_matches").update({"status": "pending_validation"}).eq(
+            "id", match_id
+        ).eq("status", "queued").execute()
+        raise HTTPException(status_code=500, detail="Enqueue auto-apply failed")
 
-    return {"status": "success", "message": "Bot application started in background", "applications_sent_today": new_count}
+    background_tasks.add_task(run_process_apply_queue_sync, queue_id)
+
+    return {
+        "status": "success",
+        "message": "Application queued for background processing",
+        "queue_id": queue_id,
+        "applications_sent_today": applications_sent_today,
+    }
